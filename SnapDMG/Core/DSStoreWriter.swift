@@ -141,7 +141,7 @@ enum DSStoreRecord: Comparable {
         backgroundImageAlias: Data?
     ) -> [String: Any] {
         var dict: [String: Any] = [
-            "viewOptionsVersion": 0,
+            "viewOptionsVersion": 1,
             "backgroundType": backgroundType,
             "backgroundColorRed": 1.0,
             "backgroundColorGreen": 1.0,
