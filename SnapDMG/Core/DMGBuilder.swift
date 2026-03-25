@@ -81,7 +81,7 @@ final class DMGBuilder {
                      "-nobrowse")
 
             defer {
-                try? run("hdiutil", "detach", mountPoint.path, "-quiet")
+                _ = try? run("hdiutil", "detach", mountPoint.path, "-quiet")
             }
 
             onProgress?("Copying files...")
@@ -141,7 +141,7 @@ final class DMGBuilder {
             onProgress?("Done!")
 
         } catch {
-            try? run("hdiutil", "detach", mountPoint.path, "-quiet")
+            _ = try? run("hdiutil", "detach", mountPoint.path, "-quiet")
             throw error
         }
     }

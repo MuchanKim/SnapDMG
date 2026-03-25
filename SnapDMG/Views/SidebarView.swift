@@ -50,6 +50,11 @@ struct SidebarView: View {
             .buttonStyle(.borderedProminent)
             .tint(.green)
             .disabled(appURL == nil)
+
+            Text("by moolab")
+                .font(.caption2)
+                .foregroundStyle(.quaternary)
+                .frame(maxWidth: .infinity)
         }
         .padding()
         .frame(width: 220)
