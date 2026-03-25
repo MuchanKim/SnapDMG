@@ -119,13 +119,8 @@ struct PreviewCanvasView: View {
     }
 
     private var applicationsIcon: some View {
-        RoundedRectangle(cornerRadius: 14)
-            .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [4]))
-            .foregroundStyle(.secondary)
-            .overlay(
-                Image(systemName: "folder")
-                    .foregroundStyle(.secondary)
-            )
+        Image(nsImage: NSWorkspace.shared.icon(forFile: "/Applications"))
+            .resizable()
     }
 
     private func clampPosition(_ pos: CGPoint) -> CGPoint {
