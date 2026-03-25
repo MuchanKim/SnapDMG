@@ -113,12 +113,6 @@ struct PreviewCanvasView: View {
     private var applicationsIcon: some View {
         Image(nsImage: NSWorkspace.shared.icon(forFile: "/Applications"))
             .resizable()
-            .overlay(alignment: .bottomLeading) {
-                Image(systemName: "arrow.right.circle.fill")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.white, .gray)
-                    .offset(x: -2, y: 2)
-            }
     }
 
     private func clampPosition(_ pos: CGPoint) -> CGPoint {
