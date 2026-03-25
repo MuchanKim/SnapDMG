@@ -70,10 +70,16 @@ struct DSStoreWriterTests {
 
     @Test("icvp 레코드 — 배경 이미지 타입 설정")
     func encodeIcvpRecord() throws {
+        let aliasData = AliasRecord.build(
+            volumeName: "TestVol",
+            parentDirName: ".background",
+            fileName: "bg.png",
+            posixPath: ".background/bg.png"
+        )
         let record = DSStoreRecord.icvp(
             iconSize: 128,
             backgroundType: 2,
-            backgroundImagePath: ".background/bg.png"
+            backgroundImageAlias: aliasData
         )
         let data = record.encode()
 
@@ -85,7 +91,7 @@ struct DSStoreWriterTests {
         let dict = try #require(plist as? [String: Any])
         #expect(dict["backgroundType"] as? Int == 2)
         #expect(dict["iconSize"] as? Double == 128.0)
-        #expect(dict["backgroundImagePath"] as? String == ".background/bg.png")
+        #expect(dict["backgroundImageAlias"] as? Data == aliasData)
     }
 
     // MARK: - Record Sorting
@@ -97,7 +103,7 @@ struct DSStoreWriterTests {
             .vSrn,
             .bwsp(windowBounds: "{{0,0},{540,380}}"),
             .iloc(filename: "MyApp.app", x: 140, y: 190),
-            .icvp(iconSize: 128, backgroundType: 0, backgroundImagePath: nil),
+            .icvp(iconSize: 128, backgroundType: 0, backgroundImageAlias: nil),
         ]
 
         let sorted = records.sorted()
@@ -162,7 +168,7 @@ struct DSStoreWriterTests {
         let records: [DSStoreRecord] = [
             .vSrn,
             .bwsp(windowBounds: "{{100, 100}, {540, 380}}"),
-            .icvp(iconSize: 128, backgroundType: 0, backgroundImagePath: nil),
+            .icvp(iconSize: 128, backgroundType: 0, backgroundImageAlias: nil),
             .iloc(filename: "MyApp.app", x: 140, y: 190),
             .iloc(filename: "Applications", x: 400, y: 190),
         ]

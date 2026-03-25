@@ -4,7 +4,6 @@ enum DMGBuilderError: LocalizedError {
     case appNotFound(String)
     case backgroundImageNotFound(String)
     case hdiutilFailed(String)
-    case finderSetupFailed(String)
     case buildFailed(String)
 
     var errorDescription: String? {
@@ -15,8 +14,6 @@ enum DMGBuilderError: LocalizedError {
             "Background image not found: \(path)"
         case .hdiutilFailed(let message):
             "hdiutil failed: \(message)"
-        case .finderSetupFailed(let message):
-            "Finder setup failed: \(message)"
         case .buildFailed(let message):
             "Build failed: \(message)"
         }
@@ -51,12 +48,12 @@ final class DMGBuilder {
 
         let tempDir = fm.temporaryDirectory.appendingPathComponent("snapdmg-\(UUID().uuidString)")
         let tempDMG = tempDir.appendingPathComponent("temp.dmg")
+        let mountPoint = tempDir.appendingPathComponent("mount")
 
         try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: tempDir) }
 
         do {
-            // 1. Calculate size
             let appSize = try directorySize(at: config.appPath)
             let bgSize = config.backgroundImagePath.flatMap { try? Data(contentsOf: $0).count } ?? 0
             let totalSize = appSize + bgSize + 10_000_000
@@ -64,7 +61,6 @@ final class DMGBuilder {
 
             onProgress?("Creating temporary DMG...")
 
-            // 2. Create temp RW DMG
             try run("hdiutil", "create",
                      "-size", "\(sizeMB)m",
                      "-fs", "HFS+",
@@ -73,64 +69,70 @@ final class DMGBuilder {
 
             onProgress?("Mounting...")
 
-            // 3. Mount WITHOUT -nobrowse (Finder needs access for background alias)
-            let volumePath = "/Volumes/\(config.volumeName)"
+            try fm.createDirectory(at: mountPoint, withIntermediateDirectories: true)
             try run("hdiutil", "attach", tempDMG.path,
-                     "-mountpoint", volumePath)
+                     "-mountpoint", mountPoint.path,
+                     "-nobrowse")
 
             defer {
-                do { try run("hdiutil", "detach", volumePath, "-quiet") } catch {}
+                do { try run("hdiutil", "detach", mountPoint.path, "-quiet") } catch {}
             }
 
             onProgress?("Copying files...")
 
-            let volumeURL = URL(fileURLWithPath: volumePath)
-
-            // 4. Copy .app
-            let appDest = volumeURL.appendingPathComponent(config.appPath.lastPathComponent)
+            let appDest = mountPoint.appendingPathComponent(config.appPath.lastPathComponent)
             try fm.copyItem(at: config.appPath, to: appDest)
 
-            // 5. Create Applications symlink
-            let appsLink = volumeURL.appendingPathComponent("Applications")
+            let appsLink = mountPoint.appendingPathComponent("Applications")
             try fm.createSymbolicLink(atPath: appsLink.path,
                                        withDestinationPath: "/Applications")
 
-            // 6. Copy background image
             var bgFileName: String?
             if let bgPath = config.backgroundImagePath {
-                let bgDir = volumeURL.appendingPathComponent(".background")
+                let bgDir = mountPoint.appendingPathComponent(".background")
                 try fm.createDirectory(at: bgDir, withIntermediateDirectories: true)
                 bgFileName = bgPath.lastPathComponent
-                let bgDest = bgDir.appendingPathComponent(bgFileName!)
-                try fm.copyItem(at: bgPath, to: bgDest)
+                try fm.copyItem(at: bgPath, to: bgDir.appendingPathComponent(bgFileName!))
             }
 
-            onProgress?("Configuring Finder window...")
+            onProgress?("Writing .DS_Store...")
 
-            // 7. Use AppleScript to configure Finder (creates proper Alias records)
-            try configureWithFinder(
-                volumeName: config.volumeName,
-                appName: config.appPath.lastPathComponent,
-                windowSize: config.windowSize,
-                iconPositions: config.iconPositions,
-                iconSize: config.iconSize,
-                bgFileName: bgFileName
-            )
+            let appName = config.appPath.lastPathComponent
+            var records: [DSStoreRecord] = [
+                .vSrn,
+                .icvl,
+                .bwsp(windowBounds: "{{100, 100}, {\(Int(config.windowSize.width)), \(Int(config.windowSize.height))}}"),
+                .iloc(filename: appName, x: UInt32(config.iconPositions.app.x), y: UInt32(config.iconPositions.app.y)),
+                .iloc(filename: "Applications", x: UInt32(config.iconPositions.applications.x), y: UInt32(config.iconPositions.applications.y)),
+            ]
 
-            // 8. Clean up system files
-            let fseventsd = volumeURL.appendingPathComponent(".fseventsd")
+            if let bg = bgFileName {
+                let aliasData = AliasRecord.build(
+                    volumeName: config.volumeName,
+                    parentDirName: ".background",
+                    fileName: bg,
+                    posixPath: ".background/\(bg)"
+                )
+                records.append(.icvp(iconSize: config.iconSize, backgroundType: 2, backgroundImageAlias: aliasData))
+            } else {
+                records.append(.icvp(iconSize: config.iconSize, backgroundType: 0, backgroundImageAlias: nil))
+            }
+
+            let dsStorePath = mountPoint.appendingPathComponent(".DS_Store")
+            try DSStoreWriter.write(records: records, to: dsStorePath)
+
+            // Clean up system artifacts
+            let fseventsd = mountPoint.appendingPathComponent(".fseventsd")
             if fm.fileExists(atPath: fseventsd.path) {
                 try? fm.removeItem(at: fseventsd)
             }
 
             onProgress?("Detaching...")
 
-            // 9. Detach
-            try run("hdiutil", "detach", volumePath)
+            try run("hdiutil", "detach", mountPoint.path)
 
             onProgress?("Compressing...")
 
-            // 9. Convert to read-only compressed
             try run("hdiutil", "convert", tempDMG.path,
                      "-format", "UDZO",
                      "-o", config.outputPath.path)
@@ -138,68 +140,8 @@ final class DMGBuilder {
             onProgress?("Done!")
 
         } catch {
-            do { try run("hdiutil", "detach", "/Volumes/\(config.volumeName)", "-quiet") } catch {}
+            do { try run("hdiutil", "detach", mountPoint.path, "-quiet") } catch {}
             throw error
-        }
-    }
-
-    // MARK: - Finder Configuration
-
-    private func configureWithFinder(
-        volumeName: String,
-        appName: String,
-        windowSize: CGSize,
-        iconPositions: IconPositions,
-        iconSize: Double,
-        bgFileName: String?
-    ) throws {
-        let w = Int(windowSize.width)
-        let h = Int(windowSize.height)
-        let appX = Int(iconPositions.app.x)
-        let appY = Int(iconPositions.app.y)
-        let appsX = Int(iconPositions.applications.x)
-        let appsY = Int(iconPositions.applications.y)
-
-        let bgLine: String
-        if let bg = bgFileName {
-            bgLine = "set background picture of viewOptions to file \".background:\(bg)\""
-        } else {
-            bgLine = "-- no background"
-        }
-
-        let script = """
-        tell application "Finder"
-            tell disk "\(volumeName)"
-                open
-                delay 2
-                set current view of container window to icon view
-                set toolbar visible of container window to false
-                set statusbar visible of container window to false
-                set the bounds of container window to {100, 100, \(100 + w), \(100 + h)}
-                set viewOptions to the icon view options of container window
-                set icon size of viewOptions to \(Int(iconSize))
-                set text size of viewOptions to 12
-                set arrangement of viewOptions to not arranged
-                \(bgLine)
-                delay 1
-                set position of item "\(appName)" of container window to {\(appX), \(appY)}
-                set position of item "Applications" of container window to {\(appsX), \(appsY)}
-                delay 3
-                close
-                delay 2
-            end tell
-        end tell
-        """
-
-        // Write script to temp file to avoid shell escaping issues
-        let scriptFile = FileManager.default.temporaryDirectory
-            .appendingPathComponent("snapdmg-\(UUID().uuidString).scpt")
-        try script.write(to: scriptFile, atomically: true, encoding: .utf8)
-        defer { try? FileManager.default.removeItem(at: scriptFile) }
-
-        let result = try run("osascript", scriptFile.path)
-        if result.lowercased().contains("error") {
-            throw DMGBuilderError.finderSetupFailed(result)
         }
     }
 

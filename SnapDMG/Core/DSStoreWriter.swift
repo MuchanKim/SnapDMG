@@ -7,7 +7,7 @@ enum DSStoreRecord: Comparable {
     case vSrn
     case bwsp(windowBounds: String)
     case icvl
-    case icvp(iconSize: Double, backgroundType: Int, backgroundImagePath: String?)
+    case icvp(iconSize: Double, backgroundType: Int, backgroundImageAlias: Data?)
     case iloc(filename: String, x: UInt32, y: UInt32)
 
     struct SortKey: Comparable, Equatable {
@@ -69,11 +69,11 @@ enum DSStoreRecord: Comparable {
                 data.append(plistData)
             }
 
-        case .icvp(let iconSize, let backgroundType, let backgroundImagePath):
+        case .icvp(let iconSize, let backgroundType, let backgroundImageAlias):
             let plist = icvpPlist(
                 iconSize: iconSize,
                 backgroundType: backgroundType,
-                backgroundImagePath: backgroundImagePath
+                backgroundImageAlias: backgroundImageAlias
             )
             return encodeRecord(filename: ".", code: "icvp", type: "blob") { data in
                 let plistData = try! PropertyListSerialization.data(
@@ -138,7 +138,7 @@ enum DSStoreRecord: Comparable {
     private func icvpPlist(
         iconSize: Double,
         backgroundType: Int,
-        backgroundImagePath: String?
+        backgroundImageAlias: Data?
     ) -> [String: Any] {
         var dict: [String: Any] = [
             "viewOptionsVersion": 1,
@@ -156,8 +156,8 @@ enum DSStoreRecord: Comparable {
             "showItemInfo": false,
             "arrangeBy": "none",
         ]
-        if let path = backgroundImagePath {
-            dict["backgroundImagePath"] = path
+        if let alias = backgroundImageAlias {
+            dict["backgroundImageAlias"] = alias
         }
         return dict
     }
