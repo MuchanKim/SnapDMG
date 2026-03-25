@@ -141,7 +141,8 @@ struct DSStoreWriterTests {
 
         let fileData = try DSStoreWriter.assemble(records: records)
 
-        let recordCountOffset = 0x0024 + 8
+        // DSDB at file offset 0x0044, record count at DSDB+8
+        let recordCountOffset = 0x0044 + 8
         let recordCount = readUInt32(fileData, at: recordCountOffset)
         #expect(recordCount == 3)
     }

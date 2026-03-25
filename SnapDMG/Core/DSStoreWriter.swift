@@ -167,80 +167,130 @@ enum DSStoreRecord: Comparable {
 
 enum DSStoreWriter {
 
+    /// DropDMG의 .DS_Store 레이아웃을 정확히 따르는 구현.
+    ///
+    /// Layout (DropDMG 기준):
+    /// - 0x0000: File magic (4 bytes)
+    /// - 0x0004: Bud1 header (20 bytes)
+    /// - 0x0018: padding zeros
+    /// - 0x0044: DSDB block (20 bytes, buddy offset 0x40, width=5)
+    /// - 0x1004: B-tree leaf node (4096 bytes, buddy offset 0x1000, width=12)
+    /// - 0x2004: Root block (2048 bytes, buddy offset 0x2000, width=11)
     static func assemble(records: [DSStoreRecord]) throws -> Data {
         let sorted = records.sorted()
-        var file = Data()
 
-        // === 1. File magic prefix ===
-        file.appendUInt32(0x00000001)
+        // Total file size: 0x2004 + 2048 = 0x2804 = 10244 bytes
+        var file = Data(count: 0x2804)
 
-        // === 2. Buddy header (32 bytes at file offset 0x0004) ===
-        file.append("Bud1".data(using: .ascii)!)
-        file.appendUInt32(0x0800)   // root block buddy offset
-        file.appendUInt32(0x0800)   // root block size
-        file.appendUInt32(0x0800)   // root block buddy offset (copy)
-        // unknown1: 16 bytes
-        file.appendUInt32(0x0000100C)
-        file.append(contentsOf: [UInt8](repeating: 0, count: 12))
+        var pos = 0
 
-        // === 3. DSDB super block (20 bytes at file offset 0x0024) ===
-        file.appendUInt32(2)                        // root_node = block[2]
-        file.appendUInt32(0)                        // levels = 0 (leaf only)
-        file.appendUInt32(UInt32(sorted.count))     // record count
-        file.appendUInt32(1)                        // node count
-        file.appendUInt32(0x1000)                   // page_size = 4096
-
-        // === 4. Padding to root block (file offset 0x0804) ===
-        let paddingToRoot = 0x0804 - file.count
-        file.append(contentsOf: [UInt8](repeating: 0, count: paddingToRoot))
-
-        // === 5. Buddy root block (at file offset 0x0804) ===
-        file.appendUInt32(3)        // num_blocks
-        file.appendUInt32(0)        // unknown2
-
-        // Block address array: [root_block, dsdb, btree_node]
-        file.appendUInt32(0x0000_080B)  // block[0]: root block at 0x0800, width=11 (2048)
-        file.appendUInt32(0x0000_0025)  // block[1]: DSDB at 0x0020, width=5 (32)
-        file.appendUInt32(0x0000_100C)  // block[2]: B-tree at 0x1000, width=12 (4096)
-        // Pad to 256 entries
-        file.append(contentsOf: [UInt8](repeating: 0, count: (256 - 3) * 4))
-
-        // TOC: 1 entry "DSDB" -> block[1]
-        file.appendUInt32(1)
-        file.append(UInt8(4))
-        file.append("DSDB".data(using: .ascii)!)
-        file.appendUInt32(1)
-
-        // Free lists (32 entries)
-        for width in 0..<32 {
-            switch width {
-            case 0, 1, 2, 3, 4, 5, 11, 12, 31:
-                file.appendUInt32(0)    // no free blocks
-            default:
-                file.appendUInt32(1)    // one free block
-                file.appendUInt32(UInt32(1 << width))
+        func write(_ data: Data, at offset: Int) {
+            for (i, byte) in data.enumerated() {
+                file[offset + i] = byte
             }
         }
 
-        // === 6. Padding to B-tree node (file offset 0x1004) ===
-        let paddingToBTree = 0x1004 - file.count
-        if paddingToBTree > 0 {
-            file.append(contentsOf: [UInt8](repeating: 0, count: paddingToBTree))
+        func writeUInt32(_ value: UInt32, at offset: Int) {
+            var be = value.bigEndian
+            let bytes = Swift.withUnsafeBytes(of: &be) { Array($0) }
+            for (i, b) in bytes.enumerated() {
+                file[offset + i] = b
+            }
         }
 
-        // === 7. B-tree leaf node (4096 bytes at file offset 0x1004) ===
-        let btreeStart = file.count
-        file.appendUInt32(0)                        // next_node = 0 (leaf)
-        file.appendUInt32(UInt32(sorted.count))     // record count
+        func writeUInt16(_ value: UInt16, at offset: Int) {
+            var be = value.bigEndian
+            let bytes = Swift.withUnsafeBytes(of: &be) { Array($0) }
+            file[offset] = bytes[0]
+            file[offset + 1] = bytes[1]
+        }
 
+        // === 1. File magic ===
+        writeUInt32(0x00000001, at: 0x0000)
+
+        // === 2. Bud1 header (file offset 0x0004) ===
+        write("Bud1".data(using: .ascii)!, at: 0x0004)
+        writeUInt32(0x2000, at: 0x0008)  // root block buddy offset
+        writeUInt32(0x0800, at: 0x000C)  // root block size (2048)
+        writeUInt32(0x2000, at: 0x0010)  // root block buddy offset (copy)
+        writeUInt32(0x100C, at: 0x0014)  // unknown (matches DropDMG)
+
+        // === 3. DSDB (file offset 0x0044, buddy offset 0x40) ===
+        writeUInt32(2, at: 0x0044)                        // root_node = block[2]
+        writeUInt32(0, at: 0x0048)                        // levels = 0
+        writeUInt32(UInt32(sorted.count), at: 0x004C)     // record count
+        writeUInt32(1, at: 0x0050)                        // node count
+        writeUInt32(0x1000, at: 0x0054)                   // page_size = 4096
+
+        // === 4. B-tree leaf node (file offset 0x1004, buddy offset 0x1000) ===
+        var btreeData = Data()
+        btreeData.appendUInt32(0)                        // next_node = 0 (leaf)
+        btreeData.appendUInt32(UInt32(sorted.count))     // record count
         for record in sorted {
-            file.append(record.encode())
+            btreeData.append(record.encode())
         }
+        // Pad to 4096
+        if btreeData.count < 4096 {
+            btreeData.append(contentsOf: [UInt8](repeating: 0, count: 4096 - btreeData.count))
+        }
+        write(btreeData, at: 0x1004)
 
-        // Pad to page_size
-        let btreeUsed = file.count - btreeStart
-        if btreeUsed < 4096 {
-            file.append(contentsOf: [UInt8](repeating: 0, count: 4096 - btreeUsed))
+        // === 5. Root block (file offset 0x2004, buddy offset 0x2000) ===
+        let rootBlockStart = 0x2004
+
+        // num_blocks, unknown
+        writeUInt32(3, at: rootBlockStart)
+        writeUInt32(0, at: rootBlockStart + 4)
+
+        // Block addresses (256 entries, only first 3 used)
+        writeUInt32(0x0000_200B, at: rootBlockStart + 8)   // block[0]: root at 0x2000, width=11
+        writeUInt32(0x0000_0045, at: rootBlockStart + 12)  // block[1]: DSDB at 0x40, width=5
+        writeUInt32(0x0000_100C, at: rootBlockStart + 16)  // block[2]: B-tree at 0x1000, width=12
+        // Rest of 256 entries are already zero
+
+        // TOC (after 256 * 4 = 1024 bytes of block addresses)
+        let tocOffset = rootBlockStart + 8 + 256 * 4
+        writeUInt32(1, at: tocOffset)           // 1 TOC entry
+        file[tocOffset + 4] = 4                 // name length = 4
+        write("DSDB".data(using: .ascii)!, at: tocOffset + 5)
+        writeUInt32(1, at: tocOffset + 9)       // -> block[1]
+
+        // Free lists (after TOC)
+        // Match DropDMG's free list structure
+        var flOffset = tocOffset + 13
+        for width in 0..<32 {
+            switch width {
+            case 5:
+                // Two free 32-byte blocks at 0x20 and 0x60
+                writeUInt32(2, at: flOffset)
+                writeUInt32(0x20, at: flOffset + 4)
+                writeUInt32(0x60, at: flOffset + 8)
+                flOffset += 12
+            case 7:
+                writeUInt32(1, at: flOffset)
+                writeUInt32(0x80, at: flOffset + 4)
+                flOffset += 8
+            case 8:
+                writeUInt32(1, at: flOffset)
+                writeUInt32(0x100, at: flOffset + 4)
+                flOffset += 8
+            case 9:
+                writeUInt32(1, at: flOffset)
+                writeUInt32(0x200, at: flOffset + 4)
+                flOffset += 8
+            case 10:
+                writeUInt32(1, at: flOffset)
+                writeUInt32(0x400, at: flOffset + 4)
+                flOffset += 8
+            case 11:
+                writeUInt32(2, at: flOffset)
+                writeUInt32(0x800, at: flOffset + 4)
+                writeUInt32(0x2800, at: flOffset + 8)
+                flOffset += 12
+            default:
+                writeUInt32(0, at: flOffset)
+                flOffset += 4
+            }
         }
 
         return file
