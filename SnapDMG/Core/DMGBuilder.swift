@@ -133,6 +133,11 @@ final class DMGBuilder {
 
             onProgress?("Compressing...")
 
+            // 기존 파일이 있으면 삭제 (hdiutil convert는 덮어쓰기 안 함)
+            if fm.fileExists(atPath: config.outputPath.path) {
+                try fm.removeItem(at: config.outputPath)
+            }
+
             try run("hdiutil", "convert", tempDMG.path,
                      "-format", "UDZO",
                      "-o", config.outputPath.path)
