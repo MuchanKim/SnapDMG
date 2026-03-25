@@ -51,7 +51,7 @@ struct SidebarView: View {
             .tint(.green)
             .disabled(appURL == nil)
 
-            Text("by moolab")
+            Text("© 2026 moolab")
                 .font(.caption2)
                 .foregroundStyle(.quaternary)
                 .frame(maxWidth: .infinity)
