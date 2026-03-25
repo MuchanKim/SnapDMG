@@ -72,9 +72,9 @@ struct DSStoreWriterTests {
     func encodeIcvpRecord() throws {
         let aliasData = AliasRecord.build(
             volumeName: "TestVol",
+            volumeMountPoint: "/tmp",
             parentDirName: ".background",
-            fileName: "bg.png",
-            posixPath: ".background/bg.png"
+            fileName: "bg.png"
         )
         let record = DSStoreRecord.icvp(
             iconSize: 128,

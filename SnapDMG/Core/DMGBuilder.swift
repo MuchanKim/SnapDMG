@@ -109,9 +109,9 @@ final class DMGBuilder {
             if let bg = bgFileName {
                 let aliasData = AliasRecord.build(
                     volumeName: config.volumeName,
+                    volumeMountPoint: mountPoint.path,
                     parentDirName: ".background",
-                    fileName: bg,
-                    posixPath: ".background/\(bg)"
+                    fileName: bg
                 )
                 records.append(.icvp(iconSize: config.iconSize, backgroundType: 2, backgroundImageAlias: aliasData))
             } else {
