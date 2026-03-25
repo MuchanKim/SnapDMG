@@ -16,21 +16,21 @@ struct PreviewCanvasView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Preview").font(.caption).foregroundStyle(.secondary)
+                Text("Preview").font(.caption).foregroundStyle(Theme.textSecondary)
                 Spacer()
                 Text("Drag icons to reposition")
-                    .font(.caption2).foregroundStyle(.tertiary)
+                    .font(.caption2).foregroundStyle(Theme.textSecondary.opacity(0.5))
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(Color(nsColor: .controlBackgroundColor))
+            .background(Theme.cardBackground)
 
             GeometryReader { _ in
                 let scaledW = project.windowSize.width * scale
                 let scaledH = project.windowSize.height * scale
 
                 ZStack {
-                    Color(nsColor: .windowBackgroundColor)
+                    Theme.canvasBackground
 
                     ZStack {
                         backgroundView
@@ -55,7 +55,11 @@ struct PreviewCanvasView: View {
                     }
                     .frame(width: scaledW, height: scaledH)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .shadow(radius: 8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(Theme.border, lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.4), radius: 12)
                 }
             }
         }
@@ -70,7 +74,7 @@ struct PreviewCanvasView: View {
                 .resizable()
                 .aspectRatio(contentMode: .fill)
         } else {
-            Color(nsColor: .windowBackgroundColor)
+            Theme.cardBackground
         }
     }
 
@@ -88,7 +92,7 @@ struct PreviewCanvasView: View {
                 .frame(width: iconSize, height: iconSize)
             Text(label)
                 .font(.system(size: 11 * scale))
-                .foregroundStyle(.primary)
+                .foregroundStyle(Theme.textPrimary)
                 .lineLimit(1)
         }
         .position(x: scaledPos.x, y: scaledPos.y)
@@ -109,10 +113,10 @@ struct PreviewCanvasView: View {
                     .resizable()
             } else {
                 RoundedRectangle(cornerRadius: 14)
-                    .fill(.blue.opacity(0.3))
+                    .fill(Theme.accent.opacity(0.3))
                     .overlay(
                         Image(systemName: "app.fill")
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Theme.textAccent)
                     )
             }
         }

@@ -23,7 +23,6 @@ struct SidebarView: View {
 
             Spacer()
 
-            // Project save/open
             HStack(spacing: 8) {
                 Button(action: onOpen) {
                     Label("Open", systemImage: "folder")
@@ -48,30 +47,31 @@ struct SidebarView: View {
                     .padding(.vertical, 8)
             }
             .buttonStyle(.borderedProminent)
-            .tint(.green)
+            .tint(Theme.accentGreen)
             .disabled(appURL == nil)
 
             Text("© 2026 moolab")
                 .font(.caption2)
-                .foregroundStyle(.quaternary)
+                .foregroundStyle(Theme.textSecondary.opacity(0.5))
                 .frame(maxWidth: .infinity)
         }
         .padding()
         .frame(width: 220)
+        .background(Theme.sidebarBackground)
     }
 
     // MARK: - Sections
 
     private var appDropZone: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("APP").font(.caption).foregroundStyle(.secondary)
+            Text("APP").font(.caption).foregroundStyle(Theme.textSecondary)
 
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(isAppTargeted ? Color.accentColor.opacity(0.2) : Color(nsColor: .controlBackgroundColor))
+                    .fill(isAppTargeted ? Theme.accent.opacity(0.15) : Theme.cardBackground)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
-                            .strokeBorder(isAppTargeted ? Color.accentColor : Color.clear, lineWidth: 2)
+                            .strokeBorder(isAppTargeted ? Theme.accent : Theme.border, lineWidth: 1)
                     )
 
                 if let url = appURL {
@@ -80,8 +80,11 @@ struct SidebarView: View {
                             .resizable()
                             .frame(width: 32, height: 32)
                         VStack(alignment: .leading) {
-                            Text(url.lastPathComponent).font(.callout).fontWeight(.semibold)
-                            Text(fileSizeString(url)).font(.caption).foregroundStyle(.secondary)
+                            Text(url.lastPathComponent)
+                                .font(.callout).fontWeight(.semibold)
+                                .foregroundStyle(Theme.textPrimary)
+                            Text(fileSizeString(url))
+                                .font(.caption).foregroundStyle(Theme.textSecondary)
                         }
                     }
                     .padding(12)
@@ -89,10 +92,10 @@ struct SidebarView: View {
                     VStack(spacing: 4) {
                         Image(systemName: "app.dashed")
                             .font(.title2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                         Text("Drop .app here")
                             .font(.caption)
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(Theme.textAccent)
                     }
                     .padding(12)
                 }
@@ -136,32 +139,29 @@ struct SidebarView: View {
 
     private var windowSizeSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("WINDOW SIZE").font(.caption).foregroundStyle(.secondary)
+            Text("WINDOW SIZE").font(.caption).foregroundStyle(Theme.textSecondary)
 
-            // Landscape presets
             HStack(spacing: 4) {
                 ForEach(landscapePresets) { preset in
                     windowPresetButton(preset)
                 }
             }
 
-            // Portrait presets
             HStack(spacing: 4) {
                 ForEach(portraitPresets) { preset in
                     windowPresetButton(preset)
                 }
             }
 
-            // Direct input
             HStack(spacing: 8) {
                 HStack(spacing: 4) {
-                    Text("W").font(.caption2).foregroundStyle(.secondary)
+                    Text("W").font(.caption2).foregroundStyle(Theme.textSecondary)
                     TextField("", value: widthBinding, format: .number)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 56)
                 }
                 HStack(spacing: 4) {
-                    Text("H").font(.caption2).foregroundStyle(.secondary)
+                    Text("H").font(.caption2).foregroundStyle(Theme.textSecondary)
                     TextField("", value: heightBinding, format: .number)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 56)
@@ -185,47 +185,48 @@ struct SidebarView: View {
                     .fontWeight(.medium)
                 Text(preset.dimensionLabel)
                     .font(.system(size: 9))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textSecondary)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
         }
         .buttonStyle(.bordered)
-        .tint(selectedWindowPreset == preset ? .accentColor : nil)
+        .tint(selectedWindowPreset == preset ? Theme.accent : nil)
     }
 
     private var backgroundSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("BACKGROUND").font(.caption).foregroundStyle(.secondary)
+            Text("BACKGROUND").font(.caption).foregroundStyle(Theme.textSecondary)
 
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6]))
-                    .foregroundStyle(isBgTargeted ? Color.accentColor : .secondary.opacity(0.5))
+                    .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6]))
+                    .foregroundStyle(isBgTargeted ? Theme.accent : Theme.borderSubtle)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(isBgTargeted ? Color.accentColor.opacity(0.1) : .clear)
+                            .fill(isBgTargeted ? Theme.accent.opacity(0.1) : Theme.cardBackground)
                     )
 
                 if let url = backgroundURL {
                     VStack(spacing: 4) {
                         Image(systemName: "photo")
-                            .foregroundStyle(.green)
+                            .foregroundStyle(Theme.accentGreen)
                         Text(url.lastPathComponent)
                             .font(.caption)
+                            .foregroundStyle(Theme.textPrimary)
                             .lineLimit(1)
                     }
                     .padding(8)
                 } else {
                     VStack(spacing: 4) {
                         Image(systemName: "photo.badge.plus")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                         Text("Drop image")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                         Text("\(Int(project.windowSize.width)) × \(Int(project.windowSize.height)) recommended")
                             .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(Theme.textSecondary.opacity(0.6))
                     }
                     .padding(8)
                 }
@@ -239,7 +240,7 @@ struct SidebarView: View {
 
     private var presetSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("LAYOUT").font(.caption).foregroundStyle(.secondary)
+            Text("LAYOUT").font(.caption).foregroundStyle(Theme.textSecondary)
 
             HStack(spacing: 4) {
                 ForEach(Preset.allCases) { preset in
@@ -253,7 +254,7 @@ struct SidebarView: View {
                             .padding(.vertical, 6)
                     }
                     .buttonStyle(.bordered)
-                    .tint(selectedPreset == preset ? .accentColor : nil)
+                    .tint(selectedPreset == preset ? Theme.accent : nil)
                 }
             }
         }
