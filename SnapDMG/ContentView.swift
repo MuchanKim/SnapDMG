@@ -16,7 +16,8 @@ struct ContentView: View {
     @State private var projectFileURL: URL?
 
     var body: some View {
-        HSplitView {
+        HStack(spacing: 0) {
+            // Left: File panel
             SidebarView(
                 project: $project,
                 appURL: $appURL,
@@ -26,13 +27,22 @@ struct ContentView: View {
                 onOpen: openProject
             )
 
+            Divider().overlay(Theme.border)
+
+            // Center: Preview canvas
             PreviewCanvasView(
                 project: $project,
                 appURL: appURL,
                 backgroundURL: backgroundURL
             )
+
+            Divider().overlay(Theme.border)
+
+            // Right: Settings panel
+            InspectorView(project: $project)
         }
-        .frame(minWidth: 760, minHeight: 500)
+        .frame(minWidth: 700, minHeight: 460)
+        .background(Theme.canvasBackground)
         .alert("Build Error", isPresented: $showAlert) {
             Button("OK") {}
         } message: {
@@ -62,7 +72,7 @@ struct ContentView: View {
                     windowSize: project.windowSize,
                     backgroundImagePath: backgroundURL,
                     iconPositions: project.iconPositions,
-                    iconSize: 128
+                    iconSize: project.iconSize
                 ))
             } catch {
                 buildError = error.localizedDescription

@@ -10,4 +10,5 @@ struct SnapDMGProject: Codable, Equatable {
     var windowSize: CGSize
     var backgroundImagePath: String?
     var iconPositions: IconPositions
+    var iconSize: Double = 128
 }
