@@ -178,4 +178,44 @@ struct DSStoreWriterTests {
         let data = try Data(contentsOf: filePath)
         #expect(data.count >= 0x1004 + 4096)
     }
+
+    // MARK: - Integration
+
+    @Test("통합: .DS_Store 파일을 포함한 DMG 생성 및 검증")
+    func integrationDMGBuild() async throws {
+        let fm = FileManager.default
+        let tempDir = fm.temporaryDirectory.appendingPathComponent("snapdmg-test-\(UUID().uuidString)")
+        try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: tempDir) }
+
+        // 가짜 .app 디렉토리 생성
+        let fakeApp = tempDir.appendingPathComponent("TestApp.app/Contents/MacOS", isDirectory: true)
+        try fm.createDirectory(at: fakeApp, withIntermediateDirectories: true)
+        try "fake".write(to: fakeApp.appendingPathComponent("TestApp"), atomically: true, encoding: .utf8)
+
+        let outputDMG = tempDir.appendingPathComponent("TestApp.dmg")
+        let appPath = tempDir.appendingPathComponent("TestApp.app")
+
+        let builder = DMGBuilder()
+        try await builder.build(config: .init(
+            appPath: appPath,
+            outputPath: outputDMG,
+            volumeName: "TestApp",
+            windowSize: CGSize(width: 540, height: 380),
+            backgroundImagePath: nil,
+            iconPositions: IconPositions(
+                app: CGPoint(x: 180, y: 190),
+                applications: CGPoint(x: 360, y: 190)
+            ),
+            iconSize: 128
+        ))
+
+        // DMG 파일 존재 확인
+        #expect(fm.fileExists(atPath: outputDMG.path))
+
+        // DMG 크기가 유효한지 확인 (최소 1KB)
+        let attrs = try fm.attributesOfItem(atPath: outputDMG.path)
+        let size = attrs[.size] as? Int ?? 0
+        #expect(size > 1024)
+    }
 }
