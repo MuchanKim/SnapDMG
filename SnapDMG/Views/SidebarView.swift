@@ -71,33 +71,7 @@ struct SidebarView: View {
                             .strokeBorder(isAppTargeted ? Theme.accent : Theme.border, lineWidth: 1)
                     )
 
-                if let url = appURL {
-                    HStack(spacing: 12) {
-                        Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
-                            .resizable()
-                            .frame(width: 36, height: 36)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(url.lastPathComponent)
-                                .font(.callout).fontWeight(.semibold)
-                                .foregroundStyle(Theme.textPrimary)
-                                .lineLimit(1)
-                            Text(fileSizeString(url))
-                                .font(.caption).foregroundStyle(Theme.textSecondary)
-                        }
-                        Spacer()
-                    }
-                    .padding(14)
-                } else {
-                    VStack(spacing: 6) {
-                        Image(systemName: "app.dashed")
-                            .font(.title2)
-                            .foregroundStyle(Theme.textSecondary)
-                        Text("Drop .app here")
-                            .font(.callout)
-                            .foregroundStyle(Theme.textAccent)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
+                appDropContent
             }
             .frame(height: 80)
             .onDrop(of: [.fileURL], isTargeted: $isAppTargeted) { providers in
@@ -149,6 +123,37 @@ struct SidebarView: View {
             .onDrop(of: [.fileURL], isTargeted: $isBgTargeted) { providers in
                 handleBackgroundDrop(providers)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var appDropContent: some View {
+        if let url = appURL {
+            HStack(spacing: 12) {
+                Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+                    .resizable()
+                    .frame(width: 36, height: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(url.lastPathComponent)
+                        .font(.callout).fontWeight(.semibold)
+                        .foregroundStyle(Theme.textPrimary)
+                        .lineLimit(1)
+                    Text(fileSizeString(url))
+                        .font(.caption).foregroundStyle(Theme.textSecondary)
+                }
+                Spacer()
+            }
+            .padding(14)
+        } else {
+            VStack(spacing: 6) {
+                Image(systemName: "app.dashed")
+                    .font(.title2)
+                    .foregroundStyle(Theme.textSecondary)
+                Text("Drop .app here")
+                    .font(.callout)
+                    .foregroundStyle(Theme.textAccent)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
