@@ -41,14 +41,14 @@ struct InspectorView: View {
                         selectedPreset = preset
                         project.iconPositions = preset.iconPositions(for: project.windowSize)
                     } label: {
-                        HStack {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(preset.displayName)
-                                .font(.callout)
-                            Spacer()
+                                .font(.callout).fontWeight(.medium)
                             Text(preset.description)
                                 .font(.caption2)
                                 .foregroundStyle(Theme.textSecondary)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 6)
                         .padding(.horizontal, 10)
                     }

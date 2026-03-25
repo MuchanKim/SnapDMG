@@ -18,13 +18,17 @@ struct SidebarView: View {
             VStack(spacing: 8) {
                 Button(action: onOpen) {
                     Label("Open Project", systemImage: "folder")
+                        .font(.callout)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 4)
                 }
                 .buttonStyle(.bordered)
 
                 Button(action: onSave) {
                     Label("Save Project", systemImage: "square.and.arrow.down")
+                        .font(.callout)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 4)
                 }
                 .buttonStyle(.bordered)
                 .disabled(appURL == nil)

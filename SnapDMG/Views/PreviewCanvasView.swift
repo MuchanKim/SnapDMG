@@ -73,13 +73,13 @@ struct PreviewCanvasView: View {
         onDrag: @escaping (CGPoint) -> Void
     ) -> some View {
         let scaledPos = CGPoint(x: position.x * scale, y: position.y * scale)
-        let iconSize: CGFloat = 64 * scale
+        let scaledIconSize = CGFloat(project.iconSize) * scale
 
         return VStack(spacing: 4) {
             icon
-                .frame(width: iconSize, height: iconSize)
+                .frame(width: scaledIconSize, height: scaledIconSize)
             Text(label)
-                .font(.system(size: 11 * scale))
+                .font(.system(size: max(9, 12 * scale)))
                 .foregroundStyle(Theme.textPrimary)
                 .lineLimit(1)
         }
