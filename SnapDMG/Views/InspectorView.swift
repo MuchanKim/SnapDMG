@@ -6,43 +6,51 @@ struct InspectorView: View {
     @State private var selectedWindowPreset: WindowSizePreset? = .standard
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            // Layout
+        VStack(alignment: .leading, spacing: 16) {
             layoutSection
 
             Divider().overlay(Theme.border)
 
-            // Icon Size
             iconSizeSection
 
             Divider().overlay(Theme.border)
 
-            // Window Size
             windowSizeSection
 
             Spacer()
+
+            Text("snapDMG 1.0.0 · © 2026 moolab")
+                .font(.caption2)
+                .foregroundStyle(Theme.textSecondary.opacity(0.5))
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .padding(12)
-        .frame(width: 180)
+        .padding(16)
+        .frame(width: 220)
         .background(Theme.sidebarBackground)
     }
 
     // MARK: - Layout
 
     private var layoutSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("LAYOUT").font(.caption).foregroundStyle(Theme.textSecondary)
+        VStack(alignment: .leading, spacing: 10) {
+            Text("LAYOUT").font(.callout).fontWeight(.medium).foregroundStyle(Theme.textSecondary)
 
-            VStack(spacing: 4) {
+            VStack(spacing: 6) {
                 ForEach(Preset.allCases) { preset in
                     Button {
                         selectedPreset = preset
                         project.iconPositions = preset.iconPositions(for: project.windowSize)
                     } label: {
-                        Text(preset.displayName)
-                            .font(.caption)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 4)
+                        HStack {
+                            Text(preset.displayName)
+                                .font(.callout)
+                            Spacer()
+                            Text(preset.description)
+                                .font(.caption2)
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 10)
                     }
                     .buttonStyle(.bordered)
                     .tint(selectedPreset == preset ? Theme.accent : nil)
@@ -54,12 +62,12 @@ struct InspectorView: View {
     // MARK: - Icon Size
 
     private var iconSizeSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("ICON SIZE").font(.caption).foregroundStyle(Theme.textSecondary)
+                Text("ICON SIZE").font(.callout).fontWeight(.medium).foregroundStyle(Theme.textSecondary)
                 Spacer()
-                Text("\(Int(project.iconSize))px")
-                    .font(.caption2).monospacedDigit()
+                Text("\(Int(project.iconSize)) px")
+                    .font(.caption).monospacedDigit()
                     .foregroundStyle(Theme.textAccent)
             }
 
@@ -101,33 +109,36 @@ struct InspectorView: View {
     }
 
     private var windowSizeSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("WINDOW SIZE").font(.caption).foregroundStyle(Theme.textSecondary)
+        VStack(alignment: .leading, spacing: 10) {
+            Text("WINDOW SIZE").font(.callout).fontWeight(.medium).foregroundStyle(Theme.textSecondary)
 
-            HStack(spacing: 3) {
+            // Landscape
+            HStack(spacing: 4) {
                 ForEach(landscapePresets) { preset in
                     windowPresetButton(preset)
                 }
             }
 
-            HStack(spacing: 3) {
+            // Portrait
+            HStack(spacing: 4) {
                 ForEach(portraitPresets) { preset in
                     windowPresetButton(preset)
                 }
             }
 
-            HStack(spacing: 6) {
-                HStack(spacing: 3) {
-                    Text("W").font(.caption2).foregroundStyle(Theme.textSecondary)
+            // Direct input
+            HStack(spacing: 8) {
+                HStack(spacing: 4) {
+                    Text("W").font(.caption).foregroundStyle(Theme.textSecondary)
                     TextField("", value: widthBinding, format: .number)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 48)
+                        .frame(width: 60)
                 }
-                HStack(spacing: 3) {
-                    Text("H").font(.caption2).foregroundStyle(Theme.textSecondary)
+                HStack(spacing: 4) {
+                    Text("H").font(.caption).foregroundStyle(Theme.textSecondary)
                     TextField("", value: heightBinding, format: .number)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 48)
+                        .frame(width: 60)
                 }
             }
         }
@@ -142,16 +153,16 @@ struct InspectorView: View {
             }
             clampIconPositions()
         } label: {
-            VStack(spacing: 1) {
+            VStack(spacing: 2) {
                 Text(preset.displayName)
-                    .font(.system(size: 9))
+                    .font(.caption)
                     .fontWeight(.medium)
                 Text(preset.dimensionLabel)
-                    .font(.system(size: 8))
+                    .font(.caption2)
                     .foregroundStyle(Theme.textSecondary)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 3)
+            .padding(.vertical, 5)
         }
         .buttonStyle(.bordered)
         .tint(selectedWindowPreset == preset ? Theme.accent : nil)
