@@ -48,7 +48,9 @@ final class DMGBuilder {
 
         let tempDir = fm.temporaryDirectory.appendingPathComponent("snapdmg-\(UUID().uuidString)")
         let tempDMG = tempDir.appendingPathComponent("temp.dmg")
-        let mountPoint = tempDir.appendingPathComponent("mount")
+        // /Volumes/ 아래에 마운트해야 Alias가 올바른 경로를 가리킴
+        let mountVolName = "snapdmg-\(UUID().uuidString.prefix(8))"
+        let mountPoint = URL(fileURLWithPath: "/Volumes/\(mountVolName)")
 
         try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: tempDir) }
@@ -69,7 +71,6 @@ final class DMGBuilder {
 
             onProgress?("Mounting...")
 
-            try fm.createDirectory(at: mountPoint, withIntermediateDirectories: true)
             try run("hdiutil", "attach", tempDMG.path,
                      "-mountpoint", mountPoint.path,
                      "-nobrowse")
