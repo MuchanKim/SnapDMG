@@ -102,6 +102,15 @@ struct SidebarView: View {
                             .font(.caption)
                             .foregroundStyle(Theme.textPrimary)
                             .lineLimit(1)
+                        Button {
+                            self.backgroundURL = nil
+                            project.backgroundImagePath = nil
+                        } label: {
+                            Text("Remove")
+                                .font(.caption2)
+                                .foregroundStyle(.red.opacity(0.8))
+                        }
+                        .buttonStyle(.plain)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
