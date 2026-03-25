@@ -117,9 +117,15 @@ final class DMGBuilder {
                 bgFileName: bgFileName
             )
 
+            // 8. Clean up system files
+            let fseventsd = volumeURL.appendingPathComponent(".fseventsd")
+            if fm.fileExists(atPath: fseventsd.path) {
+                try? fm.removeItem(at: fseventsd)
+            }
+
             onProgress?("Detaching...")
 
-            // 8. Detach
+            // 9. Detach
             try run("hdiutil", "detach", volumePath)
 
             onProgress?("Compressing...")
@@ -180,13 +186,19 @@ final class DMGBuilder {
                 set position of item "Applications" of container window to {\(appsX), \(appsY)}
                 delay 3
                 close
-                delay 1
+                delay 2
             end tell
         end tell
         """
 
-        let result = try run("osascript", "-e", script)
-        if result.contains("error") {
+        // Write script to temp file to avoid shell escaping issues
+        let scriptFile = FileManager.default.temporaryDirectory
+            .appendingPathComponent("snapdmg-\(UUID().uuidString).scpt")
+        try script.write(to: scriptFile, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: scriptFile) }
+
+        let result = try run("osascript", scriptFile.path)
+        if result.lowercased().contains("error") {
             throw DMGBuilderError.finderSetupFailed(result)
         }
     }
