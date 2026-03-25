@@ -6,9 +6,13 @@ struct SidebarView: View {
     @Binding var appURL: URL?
     @Binding var backgroundURL: URL?
     var onBuild: () -> Void
+    var onSave: () -> Void
+    var onOpen: () -> Void
 
     @State private var isAppTargeted = false
     @State private var isBgTargeted = false
+    @State private var selectedWindowPreset: WindowSizePreset? = .standard
+    @State private var selectedPreset: Preset? = .classic
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -18,6 +22,24 @@ struct SidebarView: View {
             presetSection
 
             Spacer()
+
+            // Project save/open
+            HStack(spacing: 8) {
+                Button(action: onOpen) {
+                    Label("Open", systemImage: "folder")
+                        .font(.caption)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+
+                Button(action: onSave) {
+                    Label("Save", systemImage: "square.and.arrow.down")
+                        .font(.caption)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(appURL == nil)
+            }
 
             Button(action: onBuild) {
                 Text("Build DMG")
@@ -80,14 +102,22 @@ struct SidebarView: View {
     private var widthBinding: Binding<Double> {
         Binding(
             get: { Double(project.windowSize.width) },
-            set: { project.windowSize.width = CGFloat($0) }
+            set: { newValue in
+                project.windowSize.width = CGFloat(newValue)
+                selectedWindowPreset = WindowSizePreset.matching(project.windowSize)
+                clampIconPositions()
+            }
         )
     }
 
     private var heightBinding: Binding<Double> {
         Binding(
             get: { Double(project.windowSize.height) },
-            set: { project.windowSize.height = CGFloat($0) }
+            set: { newValue in
+                project.windowSize.height = CGFloat(newValue)
+                selectedWindowPreset = WindowSizePreset.matching(project.windowSize)
+                clampIconPositions()
+            }
         )
     }
 
@@ -95,18 +125,43 @@ struct SidebarView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("WINDOW SIZE").font(.caption).foregroundStyle(.secondary)
 
+            // Window size presets as toggle grid
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 4) {
+                ForEach(WindowSizePreset.allCases) { preset in
+                    Button {
+                        selectedWindowPreset = preset
+                        project.windowSize = preset.size
+                        clampIconPositions()
+                    } label: {
+                        VStack(spacing: 1) {
+                            Text(preset.displayName)
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                            Text(preset.dimensionLabel)
+                                .font(.system(size: 9))
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(selectedWindowPreset == preset ? .accentColor : nil)
+                }
+            }
+
+            // Direct input
             HStack(spacing: 8) {
-                VStack {
+                HStack(spacing: 4) {
                     Text("W").font(.caption2).foregroundStyle(.secondary)
                     TextField("", value: widthBinding, format: .number)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 80)
+                        .frame(width: 56)
                 }
-                VStack {
+                HStack(spacing: 4) {
                     Text("H").font(.caption2).foregroundStyle(.secondary)
                     TextField("", value: heightBinding, format: .number)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 80)
+                        .frame(width: 56)
                 }
             }
         }
@@ -157,21 +212,42 @@ struct SidebarView: View {
 
     private var presetSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("PRESET").font(.caption).foregroundStyle(.secondary)
+            Text("LAYOUT").font(.caption).foregroundStyle(.secondary)
 
-            ForEach(Preset.allCases) { preset in
-                Button {
-                    project.iconPositions = preset.iconPositions(for: project.windowSize)
-                } label: {
-                    Text(preset.displayName)
-                        .frame(maxWidth: .infinity)
+            HStack(spacing: 4) {
+                ForEach(Preset.allCases) { preset in
+                    Button {
+                        selectedPreset = preset
+                        project.iconPositions = preset.iconPositions(for: project.windowSize)
+                    } label: {
+                        Text(preset.displayName)
+                            .font(.caption)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(selectedPreset == preset ? .accentColor : nil)
                 }
-                .buttonStyle(.bordered)
             }
         }
     }
 
     // MARK: - Helpers
+
+    private func clampIconPositions() {
+        let w = project.windowSize.width
+        let h = project.windowSize.height
+        let margin: CGFloat = 32
+
+        project.iconPositions.app = CGPoint(
+            x: max(margin, min(w - margin, project.iconPositions.app.x)),
+            y: max(margin, min(h - margin, project.iconPositions.app.y))
+        )
+        project.iconPositions.applications = CGPoint(
+            x: max(margin, min(w - margin, project.iconPositions.applications.x)),
+            y: max(margin, min(h - margin, project.iconPositions.applications.y))
+        )
+    }
 
     private func handleAppDrop(_ providers: [NSItemProvider]) -> Bool {
         guard let provider = providers.first else { return false }

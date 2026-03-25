@@ -21,7 +21,9 @@ struct ContentView: View {
                 project: $project,
                 appURL: $appURL,
                 backgroundURL: $backgroundURL,
-                onBuild: buildDMG
+                onBuild: buildDMG,
+                onSave: saveProject,
+                onOpen: openProject
             )
 
             PreviewCanvasView(
@@ -31,26 +33,6 @@ struct ContentView: View {
             )
         }
         .frame(minWidth: 760, minHeight: 500)
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    openProject()
-                } label: {
-                    Image(systemName: "folder")
-                }
-                .help("Open Project")
-            }
-
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    saveProject()
-                } label: {
-                    Image(systemName: "square.and.arrow.down")
-                }
-                .help("Save Project")
-                .disabled(appURL == nil)
-            }
-        }
         .alert("Build Error", isPresented: $showAlert) {
             Button("OK") {}
         } message: {
