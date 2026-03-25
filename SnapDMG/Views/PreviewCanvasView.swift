@@ -14,18 +14,7 @@ struct PreviewCanvasView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("Preview").font(.caption).foregroundStyle(Theme.textSecondary)
-                Spacer()
-                Text("Drag icons to reposition")
-                    .font(.caption2).foregroundStyle(Theme.textSecondary.opacity(0.5))
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(Theme.cardBackground)
-
-            GeometryReader { _ in
+        GeometryReader { _ in
                 let scaledW = project.windowSize.width * scale
                 let scaledH = project.windowSize.height * scale
 
@@ -62,7 +51,6 @@ struct PreviewCanvasView: View {
                     .shadow(color: .black.opacity(0.4), radius: 12)
                 }
             }
-        }
     }
 
     // MARK: - Subviews

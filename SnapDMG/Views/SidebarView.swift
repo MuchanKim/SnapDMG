@@ -50,7 +50,7 @@ struct SidebarView: View {
             .tint(Theme.accentGreen)
             .disabled(appURL == nil)
 
-            Text("© 2026 moolab")
+            Text("snapDMG 1.0.0 · © 2026 moolab")
                 .font(.caption2)
                 .foregroundStyle(Theme.textSecondary.opacity(0.5))
                 .frame(maxWidth: .infinity)
