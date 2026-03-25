@@ -73,7 +73,7 @@ struct DSStoreWriterTests {
         let record = DSStoreRecord.icvp(
             iconSize: 128,
             backgroundType: 2,
-            backgroundImageAlias: Data([0xDE, 0xAD])
+            backgroundImagePath: ".background/bg.png"
         )
         let data = record.encode()
 
@@ -85,7 +85,7 @@ struct DSStoreWriterTests {
         let dict = try #require(plist as? [String: Any])
         #expect(dict["backgroundType"] as? Int == 2)
         #expect(dict["iconSize"] as? Double == 128.0)
-        #expect(dict["backgroundImageAlias"] as? Data == Data([0xDE, 0xAD]))
+        #expect(dict["backgroundImagePath"] as? String == ".background/bg.png")
     }
 
     // MARK: - Record Sorting
@@ -97,7 +97,7 @@ struct DSStoreWriterTests {
             .vSrn,
             .bwsp(windowBounds: "{{0,0},{540,380}}"),
             .iloc(filename: "MyApp.app", x: 140, y: 190),
-            .icvp(iconSize: 128, backgroundType: 0, backgroundImageAlias: nil),
+            .icvp(iconSize: 128, backgroundType: 0, backgroundImagePath: nil),
         ]
 
         let sorted = records.sorted()
@@ -162,7 +162,7 @@ struct DSStoreWriterTests {
         let records: [DSStoreRecord] = [
             .vSrn,
             .bwsp(windowBounds: "{{100, 100}, {540, 380}}"),
-            .icvp(iconSize: 128, backgroundType: 0, backgroundImageAlias: nil),
+            .icvp(iconSize: 128, backgroundType: 0, backgroundImagePath: nil),
             .iloc(filename: "MyApp.app", x: 140, y: 190),
             .iloc(filename: "Applications", x: 400, y: 190),
         ]

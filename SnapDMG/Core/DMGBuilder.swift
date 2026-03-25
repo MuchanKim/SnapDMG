@@ -117,11 +117,9 @@ final class DMGBuilder {
 
             if let bgPath = config.backgroundImagePath {
                 let bgRelativePath = ".background/\(bgPath.lastPathComponent)"
-                let bgFullPath = mountPoint.appendingPathComponent(bgRelativePath)
-                let aliasData = try bgFullPath.bookmarkData()
-                records.append(.icvp(iconSize: config.iconSize, backgroundType: 2, backgroundImageAlias: aliasData))
+                records.append(.icvp(iconSize: config.iconSize, backgroundType: 2, backgroundImagePath: bgRelativePath))
             } else {
-                records.append(.icvp(iconSize: config.iconSize, backgroundType: 0, backgroundImageAlias: nil))
+                records.append(.icvp(iconSize: config.iconSize, backgroundType: 0, backgroundImagePath: nil))
             }
 
             let dsStorePath = mountPoint.appendingPathComponent(".DS_Store")
