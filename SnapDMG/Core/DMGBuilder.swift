@@ -98,28 +98,15 @@ final class DMGBuilder {
             onProgress?("Writing .DS_Store...")
 
             let appName = config.appPath.lastPathComponent
-            var records: [DSStoreRecord] = [
-                .vSrn,
-                .icvl,
-                .bwsp(windowBounds: "{{100, 100}, {\(Int(config.windowSize.width)), \(Int(config.windowSize.height))}}"),
-                .iloc(filename: appName, x: UInt32(config.iconPositions.app.x), y: UInt32(config.iconPositions.app.y)),
-                .iloc(filename: "Applications", x: UInt32(config.iconPositions.applications.x), y: UInt32(config.iconPositions.applications.y)),
-            ]
-
-            if let bg = bgFileName {
-                let aliasData = AliasRecord.build(
-                    volumeName: config.volumeName,
-                    volumeMountPoint: mountPoint.path,
-                    parentDirName: ".background",
-                    fileName: bg
-                )
-                records.append(.icvp(iconSize: config.iconSize, backgroundType: 2, backgroundImageAlias: aliasData))
-            } else {
-                records.append(.icvp(iconSize: config.iconSize, backgroundType: 0, backgroundImageAlias: nil))
-            }
-
-            let dsStorePath = mountPoint.appendingPathComponent(".DS_Store")
-            try DSStoreWriter.write(records: records, to: dsStorePath)
+            try writeDSStoreWithPython(
+                mountPath: mountPoint.path,
+                volumeName: config.volumeName,
+                appName: appName,
+                windowSize: config.windowSize,
+                iconPositions: config.iconPositions,
+                iconSize: config.iconSize,
+                bgFileName: bgFileName
+            )
 
             // Clean up system artifacts
             let fseventsd = mountPoint.appendingPathComponent(".fseventsd")
@@ -143,6 +130,94 @@ final class DMGBuilder {
             do { try run("hdiutil", "detach", mountPoint.path, "-quiet") } catch {}
             throw error
         }
+    }
+
+    // MARK: - DS_Store Generation
+
+    private func writeDSStoreWithPython(
+        mountPath: String,
+        volumeName: String,
+        appName: String,
+        windowSize: CGSize,
+        iconPositions: IconPositions,
+        iconSize: Double,
+        bgFileName: String?
+    ) throws {
+        let w = Int(windowSize.width)
+        let h = Int(windowSize.height)
+        let appX = Int(iconPositions.app.x)
+        let appY = Int(iconPositions.app.y)
+        let appsX = Int(iconPositions.applications.x)
+        let appsY = Int(iconPositions.applications.y)
+        let icoSize = Int(iconSize)
+
+        let bgPython: String
+        if let bg = bgFileName {
+            bgPython = """
+            from mac_alias import Alias
+            bg_path = os.path.join(mount, '.background', '\(bg)')
+            alias = Alias.for_file(bg_path)
+            icvp['backgroundType'] = 2
+            icvp['backgroundImageAlias'] = bytes(alias.to_bytes())
+            """
+        } else {
+            bgPython = "icvp['backgroundType'] = 0"
+        }
+
+        let script = """
+        import os, sys
+        from ds_store import DSStore, DSStoreEntry
+        from mac_alias import Alias
+        import plistlib
+
+        mount = '\(mountPath)'
+        ds_path = os.path.join(mount, '.DS_Store')
+
+        # bwsp plist
+        bwsp = {
+            'WindowBounds': '{{100, 100}, {\(w), \(h)}}',
+            'ShowSidebar': False,
+            'ContainerShowSidebar': False,
+            'ShowStatusBar': False,
+            'ShowPathbar': False,
+            'ShowToolbar': False,
+            'ShowTabView': False,
+            'SidebarWidth': 0,
+            'PreviewPaneVisibility': False,
+        }
+
+        # icvp plist
+        icvp = {
+            'viewOptionsVersion': 1,
+            'backgroundColorRed': 1.0,
+            'backgroundColorGreen': 1.0,
+            'backgroundColorBlue': 1.0,
+            'gridOffsetX': 0.0,
+            'gridOffsetY': 0.0,
+            'gridSpacing': 100.0,
+            'iconSize': float(\(icoSize)),
+            'textSize': 12.0,
+            'labelOnBottom': True,
+            'showIconPreview': True,
+            'showItemInfo': False,
+            'arrangeBy': 'none',
+        }
+        \(bgPython)
+
+        with DSStore.open(ds_path, 'w+') as d:
+            d['.']['vSrn'] = ('long', 1)
+            d['.']['bwsp'] = plistlib.dumps(bwsp, fmt=plistlib.FMT_BINARY)
+            d['.']['icvp'] = plistlib.dumps(icvp, fmt=plistlib.FMT_BINARY)
+            d['\(appName)']['Iloc'] = (\(appX), \(appY))
+            d['Applications']['Iloc'] = (\(appsX), \(appsY))
+        """
+
+        let scriptFile = FileManager.default.temporaryDirectory
+            .appendingPathComponent("snapdmg-dsstore-\(UUID().uuidString).py")
+        try script.write(to: scriptFile, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: scriptFile) }
+
+        try run("python3", scriptFile.path)
     }
 
     // MARK: - Private
