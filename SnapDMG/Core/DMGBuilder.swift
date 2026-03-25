@@ -109,6 +109,7 @@ final class DMGBuilder {
             let appName = config.appPath.lastPathComponent
             var records: [DSStoreRecord] = [
                 .vSrn,
+                .icvl,
                 .bwsp(windowBounds: "{{100, 100}, {\(Int(config.windowSize.width)), \(Int(config.windowSize.height))}}"),
                 .iloc(filename: appName, x: UInt32(config.iconPositions.app.x), y: UInt32(config.iconPositions.app.y)),
                 .iloc(filename: "Applications", x: UInt32(config.iconPositions.applications.x), y: UInt32(config.iconPositions.applications.y)),

@@ -6,6 +6,7 @@ enum DSStoreRecord: Comparable {
 
     case vSrn
     case bwsp(windowBounds: String)
+    case icvl
     case icvp(iconSize: Double, backgroundType: Int, backgroundImageAlias: Data?)
     case iloc(filename: String, x: UInt32, y: UInt32)
 
@@ -27,6 +28,8 @@ enum DSStoreRecord: Comparable {
             SortKey(filename: ".", code: "vSrn")
         case .bwsp:
             SortKey(filename: ".", code: "bwsp")
+        case .icvl:
+            SortKey(filename: ".", code: "icvl")
         case .icvp:
             SortKey(filename: ".", code: "icvp")
         case .iloc(let filename, _, _):
@@ -49,6 +52,11 @@ enum DSStoreRecord: Comparable {
         case .vSrn:
             return encodeRecord(filename: ".", code: "vSrn", type: "long") { data in
                 data.appendUInt32(1)
+            }
+
+        case .icvl:
+            return encodeRecord(filename: ".", code: "icvl", type: "type") { data in
+                data.append("icnv".data(using: .ascii)!)
             }
 
         case .bwsp(let windowBounds):
@@ -123,6 +131,7 @@ enum DSStoreRecord: Comparable {
             "ShowToolbar": false,
             "ShowTabView": false,
             "SidebarWidth": 0,
+            "PreviewPaneVisibility": false,
         ]
     }
 
