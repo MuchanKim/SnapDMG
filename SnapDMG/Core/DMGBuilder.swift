@@ -3,7 +3,7 @@ import Foundation
 enum DMGBuilderError: LocalizedError {
     case appNotFound(String)
     case backgroundImageNotFound(String)
-    case createDmgNotFound
+    case hdiutilFailed(String)
     case buildFailed(String)
 
     var errorDescription: String? {
@@ -12,8 +12,8 @@ enum DMGBuilderError: LocalizedError {
             "App not found: \(path)"
         case .backgroundImageNotFound(let path):
             "Background image not found: \(path)"
-        case .createDmgNotFound:
-            "create-dmg not found. Install with: brew install create-dmg"
+        case .hdiutilFailed(let message):
+            "hdiutil failed: \(message)"
         case .buildFailed(let message):
             "Build failed: \(message)"
         }
@@ -46,44 +46,110 @@ final class DMGBuilder {
             }
         }
 
-        // create-dmg 찾기
-        let createDmgPath = findCreateDmg()
-        guard let createDmg = createDmgPath else {
-            throw DMGBuilderError.createDmgNotFound
+        let tempDir = fm.temporaryDirectory.appendingPathComponent("snapdmg-\(UUID().uuidString)")
+        let tempDMG = tempDir.appendingPathComponent("temp.dmg")
+        let mountVolName = "snapdmg-\(UUID().uuidString.prefix(8))"
+        let mountPoint = URL(fileURLWithPath: "/Volumes/\(mountVolName)")
+
+        try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: tempDir) }
+
+        do {
+            let appSize = try directorySize(at: config.appPath)
+            let bgSize = config.backgroundImagePath.flatMap { try? Data(contentsOf: $0).count } ?? 0
+            let totalSize = appSize + bgSize + 10_000_000
+            let sizeMB = max(16, (totalSize / 1_000_000) + 1)
+
+            onProgress?("Creating temporary DMG...")
+
+            try run("hdiutil", "create",
+                     "-size", "\(sizeMB)m",
+                     "-fs", "HFS+",
+                     "-volname", config.volumeName,
+                     tempDMG.path)
+
+            onProgress?("Mounting...")
+
+            try run("hdiutil", "attach", tempDMG.path,
+                     "-mountpoint", mountPoint.path,
+                     "-nobrowse")
+
+            defer {
+                do { try run("hdiutil", "detach", mountPoint.path, "-quiet") } catch {}
+            }
+
+            onProgress?("Copying files...")
+
+            let appDest = mountPoint.appendingPathComponent(config.appPath.lastPathComponent)
+            try fm.copyItem(at: config.appPath, to: appDest)
+
+            let appsLink = mountPoint.appendingPathComponent("Applications")
+            try fm.createSymbolicLink(atPath: appsLink.path,
+                                       withDestinationPath: "/Applications")
+
+            var bgFileName: String?
+            if let bgPath = config.backgroundImagePath {
+                let bgDir = mountPoint.appendingPathComponent(".background")
+                try fm.createDirectory(at: bgDir, withIntermediateDirectories: true)
+                bgFileName = bgPath.lastPathComponent
+                try fm.copyItem(at: bgPath, to: bgDir.appendingPathComponent(bgFileName!))
+            }
+
+            onProgress?("Writing .DS_Store...")
+
+            let appName = config.appPath.lastPathComponent
+            var records: [DSStoreRecord] = [
+                .vSrn,
+                .icvl,
+                .bwsp(windowBounds: "{{100, 100}, {\(Int(config.windowSize.width)), \(Int(config.windowSize.height))}}"),
+                .iloc(filename: appName, x: UInt32(config.iconPositions.app.x), y: UInt32(config.iconPositions.app.y)),
+                .iloc(filename: "Applications", x: UInt32(config.iconPositions.applications.x), y: UInt32(config.iconPositions.applications.y)),
+            ]
+
+            if let bg = bgFileName {
+                let aliasData = AliasRecord.build(
+                    volumeName: config.volumeName,
+                    volumeMountPoint: mountPoint.path,
+                    parentDirName: ".background",
+                    fileName: bg
+                )
+                records.append(.icvp(iconSize: config.iconSize, backgroundType: 2, backgroundImageAlias: aliasData))
+            } else {
+                records.append(.icvp(iconSize: config.iconSize, backgroundType: 0, backgroundImageAlias: nil))
+            }
+
+            let dsStorePath = mountPoint.appendingPathComponent(".DS_Store")
+            try DSStoreWriter.write(records: records, to: dsStorePath)
+
+            // Clean up
+            let fseventsd = mountPoint.appendingPathComponent(".fseventsd")
+            if fm.fileExists(atPath: fseventsd.path) {
+                try? fm.removeItem(at: fseventsd)
+            }
+
+            onProgress?("Detaching...")
+            try run("hdiutil", "detach", mountPoint.path)
+
+            onProgress?("Compressing...")
+            if fm.fileExists(atPath: config.outputPath.path) {
+                try fm.removeItem(at: config.outputPath)
+            }
+            try run("hdiutil", "convert", tempDMG.path,
+                     "-format", "UDZO",
+                     "-o", config.outputPath.path)
+
+            onProgress?("Done!")
+
+        } catch {
+            do { try run("hdiutil", "detach", mountPoint.path, "-quiet") } catch {}
+            throw error
         }
+    }
 
-        // 기존 출력 파일 삭제
-        if fm.fileExists(atPath: config.outputPath.path) {
-            try fm.removeItem(at: config.outputPath)
-        }
+    // MARK: - Private
 
-        onProgress?("Building DMG...")
-
-        // create-dmg 명령어 조립
-        var args = [
-            createDmg,
-            "--volname", config.volumeName,
-            "--window-pos", "100", "100",
-            "--window-size", "\(Int(config.windowSize.width))", "\(Int(config.windowSize.height))",
-            "--icon-size", "\(Int(config.iconSize))",
-            "--icon", config.appPath.lastPathComponent,
-                "\(Int(config.iconPositions.app.x))", "\(Int(config.iconPositions.app.y))",
-            "--icon", "Applications",
-                "\(Int(config.iconPositions.applications.x))", "\(Int(config.iconPositions.applications.y))",
-            "--app-drop-link",
-                "\(Int(config.iconPositions.applications.x))", "\(Int(config.iconPositions.applications.y))",
-            "--no-internet-enable",
-            "--hide-extension", config.appPath.lastPathComponent,
-        ]
-
-        if let bgPath = config.backgroundImagePath {
-            args += ["--background", bgPath.path]
-        }
-
-        args += [config.outputPath.path, config.appPath.path]
-
-        onProgress?("Creating DMG...")
-
+    @discardableResult
+    private func run(_ args: String...) throws -> String {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         process.arguments = args
@@ -98,24 +164,21 @@ final class DMGBuilder {
         let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
 
         if process.terminationStatus != 0 {
-            throw DMGBuilderError.buildFailed(output)
+            throw DMGBuilderError.hdiutilFailed("\(args.joined(separator: " ")): \(output)")
         }
 
-        onProgress?("Done!")
+        return output
     }
 
-    // MARK: - Private
-
-    private func findCreateDmg() -> String? {
-        let paths = [
-            "/opt/homebrew/bin/create-dmg",
-            "/usr/local/bin/create-dmg",
-        ]
-        for path in paths {
-            if FileManager.default.fileExists(atPath: path) {
-                return path
+    private func directorySize(at url: URL) throws -> Int {
+        let fm = FileManager.default
+        var size = 0
+        if let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.fileSizeKey]) {
+            for case let fileURL as URL in enumerator {
+                let values = try fileURL.resourceValues(forKeys: [.fileSizeKey])
+                size += values.fileSize ?? 0
             }
         }
-        return nil
+        return size
     }
 }
