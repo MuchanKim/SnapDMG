@@ -6,7 +6,7 @@ struct InspectorView: View {
     @State private var selectedWindowPreset: WindowSizePreset? = .standard
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 14) {
             layoutSection
 
             Divider().overlay(Theme.border)
@@ -24,33 +24,27 @@ struct InspectorView: View {
                 .foregroundStyle(Theme.textSecondary.opacity(0.5))
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .padding(16)
-        .frame(width: 220)
+        .padding(14)
+        .frame(width: 210)
         .background(Theme.sidebarBackground)
     }
 
     // MARK: - Layout
 
     private var layoutSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("LAYOUT").font(.callout).fontWeight(.medium).foregroundStyle(Theme.textSecondary)
 
-            VStack(spacing: 6) {
+            HStack(spacing: 4) {
                 ForEach(Preset.allCases) { preset in
                     Button {
                         selectedPreset = preset
                         project.iconPositions = preset.iconPositions(for: project.windowSize)
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(preset.displayName)
-                                .font(.callout).fontWeight(.medium)
-                            Text(preset.description)
-                                .font(.caption2)
-                                .foregroundStyle(Theme.textSecondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 6)
-                        .padding(.horizontal, 10)
+                        Text(preset.displayName)
+                            .font(.caption)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
                     }
                     .buttonStyle(.bordered)
                     .tint(selectedPreset == preset ? Theme.accent : nil)
@@ -62,7 +56,7 @@ struct InspectorView: View {
     // MARK: - Icon Size
 
     private var iconSizeSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("ICON SIZE").font(.callout).fontWeight(.medium).foregroundStyle(Theme.textSecondary)
                 Spacer()
@@ -100,45 +94,30 @@ struct InspectorView: View {
         )
     }
 
-    private var landscapePresets: [WindowSizePreset] {
-        WindowSizePreset.allCases.filter(\.isLandscape)
-    }
-
-    private var portraitPresets: [WindowSizePreset] {
-        WindowSizePreset.allCases.filter { !$0.isLandscape }
-    }
-
     private var windowSizeSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("WINDOW SIZE").font(.callout).fontWeight(.medium).foregroundStyle(Theme.textSecondary)
 
-            // Landscape
-            HStack(spacing: 4) {
-                ForEach(landscapePresets) { preset in
-                    windowPresetButton(preset)
-                }
-            }
-
-            // Portrait
-            HStack(spacing: 4) {
-                ForEach(portraitPresets) { preset in
-                    windowPresetButton(preset)
-                }
-            }
-
-            // Direct input
-            HStack(spacing: 8) {
+            // Direct input first
+            HStack(spacing: 6) {
                 HStack(spacing: 4) {
                     Text("W").font(.caption).foregroundStyle(Theme.textSecondary)
                     TextField("", value: widthBinding, format: .number)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 60)
+                        .frame(width: 56)
                 }
                 HStack(spacing: 4) {
                     Text("H").font(.caption).foregroundStyle(Theme.textSecondary)
                     TextField("", value: heightBinding, format: .number)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 60)
+                        .frame(width: 56)
+                }
+            }
+
+            // Presets grid 2 columns
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 4) {
+                ForEach(WindowSizePreset.allCases) { preset in
+                    windowPresetButton(preset)
                 }
             }
         }

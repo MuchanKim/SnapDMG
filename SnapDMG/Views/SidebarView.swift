@@ -13,22 +13,22 @@ struct SidebarView: View {
     @State private var isBgTargeted = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Open / Save — 세로 배치
+        VStack(spacing: 14) {
+            // Open / Save — 세로, 중앙정렬
             VStack(spacing: 8) {
                 Button(action: onOpen) {
                     Label("Open Project", systemImage: "folder")
                         .font(.callout)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 5)
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
 
                 Button(action: onSave) {
                     Label("Save Project", systemImage: "square.and.arrow.down")
                         .font(.callout)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 5)
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .disabled(appURL == nil)
@@ -36,27 +36,24 @@ struct SidebarView: View {
 
             Divider().overlay(Theme.border)
 
-            // App drop
             appDropZone
-
-            // Background drop
             backgroundSection
 
             Spacer()
 
-            // Build
+            // Build — 작게
             Button(action: onBuild) {
                 Text("Build DMG")
-                    .font(.title3).fontWeight(.semibold)
+                    .font(.callout).fontWeight(.semibold)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 7)
             }
             .buttonStyle(.borderedProminent)
             .tint(Theme.accentGreen)
             .disabled(appURL == nil)
         }
-        .padding(16)
-        .frame(width: 240)
+        .padding(14)
+        .frame(width: 230)
         .background(Theme.sidebarBackground)
     }
 
@@ -78,7 +75,7 @@ struct SidebarView: View {
                     HStack(spacing: 12) {
                         Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
                             .resizable()
-                            .frame(width: 40, height: 40)
+                            .frame(width: 36, height: 36)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(url.lastPathComponent)
                                 .font(.callout).fontWeight(.semibold)
@@ -93,16 +90,16 @@ struct SidebarView: View {
                 } else {
                     VStack(spacing: 6) {
                         Image(systemName: "app.dashed")
-                            .font(.largeTitle)
+                            .font(.title2)
                             .foregroundStyle(Theme.textSecondary)
                         Text("Drop .app here")
                             .font(.callout)
                             .foregroundStyle(Theme.textAccent)
                     }
-                    .padding(16)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .frame(height: 90)
+            .frame(height: 80)
             .onDrop(of: [.fileURL], isTargeted: $isAppTargeted) { providers in
                 handleAppDrop(providers)
             }
@@ -123,32 +120,32 @@ struct SidebarView: View {
                     )
 
                 if let url = backgroundURL {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 4) {
                         Image(systemName: "photo")
-                            .font(.title2)
+                            .font(.title3)
                             .foregroundStyle(Theme.accentGreen)
                         Text(url.lastPathComponent)
                             .font(.caption)
                             .foregroundStyle(Theme.textPrimary)
                             .lineLimit(1)
                     }
-                    .padding(12)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 4) {
                         Image(systemName: "photo.badge.plus")
-                            .font(.title2)
+                            .font(.title3)
                             .foregroundStyle(Theme.textSecondary)
                         Text("Drop image")
                             .font(.callout)
                             .foregroundStyle(Theme.textSecondary)
                         Text("\(Int(project.windowSize.width)) × \(Int(project.windowSize.height)) recommended")
-                            .font(.caption)
+                            .font(.caption2)
                             .foregroundStyle(Theme.textSecondary.opacity(0.6))
                     }
-                    .padding(12)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .frame(height: 100)
+            .frame(height: 80)
             .onDrop(of: [.fileURL], isTargeted: $isBgTargeted) { providers in
                 handleBackgroundDrop(providers)
             }
