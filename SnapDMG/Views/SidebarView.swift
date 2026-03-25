@@ -17,9 +17,9 @@ struct SidebarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             appDropZone
-            windowSizeSection
             backgroundSection
             presetSection
+            windowSizeSection
 
             Spacer()
 
@@ -121,31 +121,29 @@ struct SidebarView: View {
         )
     }
 
+    private var landscapePresets: [WindowSizePreset] {
+        WindowSizePreset.allCases.filter(\.isLandscape)
+    }
+
+    private var portraitPresets: [WindowSizePreset] {
+        WindowSizePreset.allCases.filter { !$0.isLandscape }
+    }
+
     private var windowSizeSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("WINDOW SIZE").font(.caption).foregroundStyle(.secondary)
 
-            // Window size presets as toggle grid
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 4) {
-                ForEach(WindowSizePreset.allCases) { preset in
-                    Button {
-                        selectedWindowPreset = preset
-                        project.windowSize = preset.size
-                        clampIconPositions()
-                    } label: {
-                        VStack(spacing: 1) {
-                            Text(preset.displayName)
-                                .font(.caption2)
-                                .fontWeight(.medium)
-                            Text(preset.dimensionLabel)
-                                .font(.system(size: 9))
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(selectedWindowPreset == preset ? .accentColor : nil)
+            // Landscape presets
+            HStack(spacing: 4) {
+                ForEach(landscapePresets) { preset in
+                    windowPresetButton(preset)
+                }
+            }
+
+            // Portrait presets
+            HStack(spacing: 4) {
+                ForEach(portraitPresets) { preset in
+                    windowPresetButton(preset)
                 }
             }
 
@@ -165,6 +163,30 @@ struct SidebarView: View {
                 }
             }
         }
+    }
+
+    private func windowPresetButton(_ preset: WindowSizePreset) -> some View {
+        Button {
+            selectedWindowPreset = preset
+            project.windowSize = preset.size
+            if let selectedPreset {
+                project.iconPositions = selectedPreset.iconPositions(for: project.windowSize)
+            }
+            clampIconPositions()
+        } label: {
+            VStack(spacing: 1) {
+                Text(preset.displayName)
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                Text(preset.dimensionLabel)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(.bordered)
+        .tint(selectedWindowPreset == preset ? .accentColor : nil)
     }
 
     private var backgroundSection: some View {
