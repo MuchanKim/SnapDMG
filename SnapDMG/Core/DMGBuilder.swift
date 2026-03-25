@@ -217,7 +217,7 @@ final class DMGBuilder {
         try script.write(to: scriptFile, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(at: scriptFile) }
 
-        try run("python3", scriptFile.path)
+        try run("/Library/Frameworks/Python.framework/Versions/3.12/bin/python3", scriptFile.path)
     }
 
     // MARK: - Private
