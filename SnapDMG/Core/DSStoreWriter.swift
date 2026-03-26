@@ -76,9 +76,8 @@ enum DSStoreRecord: Comparable {
                 backgroundImageAlias: backgroundImageAlias
             )
             return encodeRecord(filename: ".", code: "icvp", type: "blob") { data in
-                let plistData = try! PropertyListSerialization.data(
-                    fromPropertyList: plist, format: .binary, options: 0
-                )
+                // plutil로 인코딩 (Apple Core Foundation 호환)
+                let plistData = Self.encodePlistWithPlutil(plist)
                 data.appendUInt32(UInt32(plistData.count))
                 data.append(plistData)
             }
@@ -133,6 +132,35 @@ enum DSStoreRecord: Comparable {
             "SidebarWidth": 0,
             "PreviewPaneVisibility": false,
         ]
+    }
+
+    /// plutil로 binary plist 인코딩 (PropertyListSerialization과 다른 바이너리 생성)
+    static func encodePlistWithPlutil(_ dict: [String: Any]) -> Data {
+        // 1. XML plist로 먼저 인코딩
+        let xmlData = try! PropertyListSerialization.data(
+            fromPropertyList: dict, format: .xml, options: 0
+        )
+
+        // 2. 임시 파일에 저장
+        let tmpIn = FileManager.default.temporaryDirectory
+            .appendingPathComponent("snapdmg-plist-\(UUID().uuidString).xml")
+        let tmpOut = FileManager.default.temporaryDirectory
+            .appendingPathComponent("snapdmg-plist-\(UUID().uuidString).bin")
+        try! xmlData.write(to: tmpIn)
+        defer {
+            try? FileManager.default.removeItem(at: tmpIn)
+            try? FileManager.default.removeItem(at: tmpOut)
+        }
+
+        // 3. plutil로 binary1 변환
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/plutil")
+        process.arguments = ["-convert", "binary1", tmpIn.path, "-o", tmpOut.path]
+        try! process.run()
+        process.waitUntilExit()
+
+        // 4. 결과 읽기
+        return try! Data(contentsOf: tmpOut)
     }
 
     private func icvpPlist(
