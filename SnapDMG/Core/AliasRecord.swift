@@ -61,9 +61,9 @@ enum AliasRecord {
         // Tag 1: parent dir CNID (4 bytes)
         appendTagUInt32(&data, tag: 1, value: parentInode)
 
-        // Tag 2: HFS path (콜론 구분)
-        let hfsPath = "\(volumeName):\(parentDirName):\(fileName)"
-        appendTagUTF8(&data, tag: 2, string: hfsPath)
+        // Tag 2: POSIX relative path
+        let posixRelPath = "\(parentDirName)/\(fileName)"
+        appendTagUTF8(&data, tag: 2, string: posixRelPath)
 
         // Tag 14: fileName UTF-16BE
         appendTagUTF16(&data, tag: 14, string: fileName)
