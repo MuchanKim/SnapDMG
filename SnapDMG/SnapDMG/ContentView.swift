@@ -9,7 +9,6 @@ struct ContentView: View {
         iconPositions: Preset.classic.iconPositions(for: CGSize(width: 540, height: 380))
     )
     @State private var appURL: URL?
-    @State private var backgroundURL: URL?
     @State private var isBuilding = false
     @State private var buildError: String?
     @State private var showAlert = false
@@ -17,11 +16,9 @@ struct ContentView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            // Left: File panel
             SidebarView(
                 project: $project,
                 appURL: $appURL,
-                backgroundURL: $backgroundURL,
                 onBuild: buildDMG,
                 onSave: saveProject,
                 onOpen: openProject
@@ -29,19 +26,12 @@ struct ContentView: View {
 
             Divider().overlay(Theme.border)
 
-            // Center: Preview canvas
             PreviewCanvasView(
                 project: $project,
-                appURL: appURL,
-                backgroundURL: backgroundURL
+                appURL: $appURL
             )
-
-            Divider().overlay(Theme.border)
-
-            // Right: Settings panel
-            InspectorView(project: $project)
         }
-        .frame(minWidth: 700, minHeight: 460)
+        .frame(minWidth: 480, minHeight: 320)
         .background(Theme.canvasBackground)
         .alert("Build Error", isPresented: $showAlert) {
             Button("OK") {}
@@ -57,9 +47,7 @@ struct ContentView: View {
         panel.allowedContentTypes = [.init(filenameExtension: "dmg")!]
         panel.nameFieldStringValue = "\(project.appName).dmg"
 
-        guard panel.runModal() == .OK, let outputURL = panel.url else {
-            return
-        }
+        guard panel.runModal() == .OK, let outputURL = panel.url else { return }
 
         isBuilding = true
         Task {
@@ -70,7 +58,7 @@ struct ContentView: View {
                     outputPath: outputURL,
                     volumeName: project.appName,
                     windowSize: project.windowSize,
-                    backgroundImagePath: backgroundURL,
+                    backgroundImagePath: nil,
                     iconPositions: project.iconPositions,
                     iconSize: project.iconSize
                 ))
@@ -111,13 +99,6 @@ struct ContentView: View {
             let data = try Data(contentsOf: url)
             project = try JSONDecoder().decode(SnapDMGProject.self, from: data)
             projectFileURL = url
-
-            if let bgPath = project.backgroundImagePath {
-                let bgURL = URL(fileURLWithPath: bgPath)
-                if FileManager.default.fileExists(atPath: bgURL.path) {
-                    backgroundURL = bgURL
-                }
-            }
         } catch {
             buildError = "Failed to open: \(error.localizedDescription)"
             showAlert = true
