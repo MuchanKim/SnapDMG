@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct SidebarView: View {
     @Binding var project: SnapDMGProject
     @Binding var appURL: URL?
@@ -7,8 +8,15 @@ struct SidebarView: View {
     var onSave: () -> Void
     var onOpen: () -> Void
 
+    @State private var widthText = ""
+    @State private var heightText = ""
+    @State private var windowSizeError: String?
+    @FocusState private var focusedDimension: Dimension?
+
     @State private var selectedPreset: Preset? = .classic
     @State private var selectedWindowPreset: WindowSizePreset? = .standard
+
+    private enum Dimension { case width, height }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -22,6 +30,7 @@ struct SidebarView: View {
                     ) {
                         selectedPreset = preset
                         project.iconPositions = preset.iconPositions(for: project.windowSize)
+                        project.clampIconPositions()
                     }
                 }
             }
@@ -36,7 +45,7 @@ struct SidebarView: View {
                     .font(.caption2).monospacedDigit()
                     .foregroundStyle(Theme.textAccent)
             }
-            Slider(value: $project.iconSize, in: 48...256, step: 8)
+            Slider(value: iconSizeBinding, in: 48...maximumIconSize, step: 8)
                 .tint(Theme.accent)
                 .controlSize(.small)
 
@@ -46,15 +55,26 @@ struct SidebarView: View {
             sectionLabel("WINDOW")
             HStack(spacing: 4) {
                 Text("W").font(.caption2).foregroundStyle(Theme.textSecondary)
-                TextField("", value: widthBinding, format: .number)
+                TextField("", text: $widthText)
+                    .focused($focusedDimension, equals: .width)
+                    .accessibilityLabel("Window width")
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 46)
                     .controlSize(.small)
                 Text("H").font(.caption2).foregroundStyle(Theme.textSecondary)
-                TextField("", value: heightBinding, format: .number)
+                TextField("", text: $heightText)
+                    .focused($focusedDimension, equals: .height)
+                    .accessibilityLabel("Window height")
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 46)
                     .controlSize(.small)
+            }
+
+            if let windowSizeError {
+                Text(windowSizeError)
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 3) {
@@ -69,7 +89,8 @@ struct SidebarView: View {
                         if let selectedPreset {
                             project.iconPositions = selectedPreset.iconPositions(for: project.windowSize)
                         }
-                        clampIconPositions()
+                        syncWindowFields()
+                        project.clampIconPositions()
                     }
                 }
             }
@@ -87,7 +108,9 @@ struct SidebarView: View {
                 .controlSize(.small)
                 .help("Open Project")
 
-                Button(action: onSave) {
+                Button {
+                    if commitWindowSize() { onSave() }
+                } label: {
                     Image(systemName: "square.and.arrow.down")
                         .font(.caption2)
                         .frame(maxWidth: .infinity)
@@ -99,7 +122,9 @@ struct SidebarView: View {
             }
 
             // Build
-            Button(action: onBuild) {
+            Button {
+                if commitWindowSize() { onBuild() }
+            } label: {
                 Text("Build DMG")
                     .font(.caption).fontWeight(.semibold)
                     .frame(maxWidth: .infinity)
@@ -117,6 +142,12 @@ struct SidebarView: View {
         .padding(10)
         .frame(width: 160)
         .background(Theme.sidebarBackground)
+        .onAppear { syncWindowFields() }
+        .onChange(of: project.windowSize) { _, _ in syncWindowFields() }
+        .onChange(of: focusedDimension) { oldValue, _ in
+            if oldValue != nil { commitWindowSize() }
+        }
+        .onSubmit { commitWindowSize() }
     }
 
     // MARK: - Components
@@ -154,39 +185,50 @@ struct SidebarView: View {
 
     // MARK: - Bindings
 
-    private var widthBinding: Binding<Double> {
+    private var maximumIconSize: Double {
+        let layout = project.previewLayout
+        let available = min(project.windowSize.width,
+                            project.windowSize.height - layout.captionHeight) - PreviewLayout.edgePadding * 2
+        return max(48, min(256, floor(available / 8) * 8))
+    }
+
+    private var iconSizeBinding: Binding<Double> {
         Binding(
-            get: { Double(project.windowSize.width) },
-            set: { newValue in
-                project.windowSize.width = CGFloat(newValue)
-                selectedWindowPreset = WindowSizePreset.matching(project.windowSize)
-                clampIconPositions()
+            get: { project.iconSize },
+            set: {
+                project.iconSize = $0
+                project.clampIconPositions()
             }
         )
     }
 
-    private var heightBinding: Binding<Double> {
-        Binding(
-            get: { Double(project.windowSize.height) },
-            set: { newValue in
-                project.windowSize.height = CGFloat(newValue)
-                selectedWindowPreset = WindowSizePreset.matching(project.windowSize)
-                clampIconPositions()
-            }
-        )
+    private func syncWindowFields() {
+        widthText = String(Int(project.windowSize.width))
+        heightText = String(Int(project.windowSize.height))
+        windowSizeError = nil
     }
 
-    private func clampIconPositions() {
-        let w = project.windowSize.width
-        let h = project.windowSize.height
-        let margin: CGFloat = 32
-        project.iconPositions.app = CGPoint(
-            x: max(margin, min(w - margin, project.iconPositions.app.x)),
-            y: max(margin, min(h - margin, project.iconPositions.app.y))
-        )
-        project.iconPositions.applications = CGPoint(
-            x: max(margin, min(w - margin, project.iconPositions.applications.x)),
-            y: max(margin, min(h - margin, project.iconPositions.applications.y))
-        )
+    @discardableResult
+    private func commitWindowSize() -> Bool {
+        guard let width = Double(widthText), let height = Double(heightText) else {
+            windowSizeError = "Enter a number for W and H."
+            return false
+        }
+        return updateWindowSize(CGSize(width: width, height: height))
+    }
+
+    private func updateWindowSize(_ size: CGSize) -> Bool {
+        let size = CGSize(width: size.width.rounded(.down), height: size.height.rounded(.down))
+        guard project.previewLayout.containsWindowSize(size) else {
+            let minimum = project.previewLayout.minimumWindowSize
+            windowSizeError = "Enter a valid size of at least \(Int(minimum.width)) × \(Int(minimum.height))."
+            return false
+        }
+        windowSizeError = nil
+        project.windowSize = size
+        selectedWindowPreset = WindowSizePreset.matching(size)
+        project.clampIconPositions()
+        syncWindowFields()
+        return true
     }
 }
