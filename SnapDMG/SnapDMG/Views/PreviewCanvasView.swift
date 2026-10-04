@@ -1,18 +1,12 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+@MainActor
 struct PreviewCanvasView: View {
     @Binding var project: SnapDMGProject
     @Binding var appURL: URL?
     @State private var isTargeted = false
-
-    private var scale: CGFloat {
-        let maxWidth: CGFloat = 500
-        let maxHeight: CGFloat = 400
-        let scaleX = maxWidth / project.windowSize.width
-        let scaleY = maxHeight / project.windowSize.height
-        return min(scaleX, scaleY, 1.0)
-    }
+    @State private var dragStart: CGPoint?
 
     var body: some View {
         ZStack {
@@ -62,39 +56,39 @@ struct PreviewCanvasView: View {
     // MARK: - 프리뷰 (앱 있을 때)
 
     private var previewContent: some View {
-        GeometryReader { _ in
-            let scaledW = project.windowSize.width * scale
-            let scaledH = project.windowSize.height * scale
+        GeometryReader { geometry in
+            let scale = project.previewLayout.scale(in: geometry.size)
 
             ZStack {
-                Theme.canvasBackground
+                Theme.cardBackground
 
-                ZStack {
-                    Theme.cardBackground
-
-                    iconView(
-                        position: project.iconPositions.app,
-                        label: project.appName.isEmpty ? "App" : project.appName,
-                        icon: appIcon,
-                        onDrag: { project.iconPositions.app = clampPosition($0) }
-                    )
-
-                    iconView(
-                        position: project.iconPositions.applications,
-                        label: "Applications",
-                        icon: applicationsIcon,
-                        onDrag: { project.iconPositions.applications = clampPosition($0) }
-                    )
-                }
-                .frame(width: scaledW, height: scaledH)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(Theme.border, lineWidth: 1)
+                iconView(
+                    position: project.iconPositions.app,
+                    label: project.previewAppName,
+                    icon: appIcon,
+                    onDrag: { project.iconPositions.app = project.previewLayout.clampedPosition($0, label: project.previewAppName) }
                 )
-                .shadow(color: .black.opacity(0.4), radius: 12)
+
+                iconView(
+                    position: project.iconPositions.applications,
+                    label: "Applications",
+                    icon: applicationsIcon,
+                    onDrag: { project.iconPositions.applications = project.previewLayout.clampedPosition($0, label: "Applications") }
+                )
             }
+            .frame(width: project.windowSize.width, height: project.windowSize.height)
+            .coordinateSpace(name: "previewCanvas")
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(Theme.border, lineWidth: 1)
+            )
+            .scaleEffect(scale)
+            .frame(width: project.windowSize.width * scale, height: project.windowSize.height * scale)
+            .shadow(color: .black.opacity(0.4), radius: 12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .onChange(of: project.appName, initial: true) { _, _ in project.clampIconPositions() }
     }
 
     // MARK: - Icons
@@ -105,22 +99,28 @@ struct PreviewCanvasView: View {
         icon: some View,
         onDrag: @escaping (CGPoint) -> Void
     ) -> some View {
-        let scaledPos = CGPoint(x: position.x * scale, y: position.y * scale)
-        let scaledIconSize = CGFloat(project.iconSize) * scale
-
-        return VStack(spacing: 4) {
+        VStack(spacing: PreviewLayout.labelSpacing) {
             icon
-                .frame(width: scaledIconSize, height: scaledIconSize)
+                .frame(width: project.iconSize, height: project.iconSize)
             Text(label)
-                .font(.system(size: max(9, 12 * scale)))
+                .font(.system(size: PreviewLayout.textSize))
                 .foregroundStyle(Theme.textPrimary)
                 .lineLimit(1)
+                .frame(width: project.previewLayout.labelWidth(for: label), height: PreviewLayout.labelHeight)
         }
-        .position(x: scaledPos.x, y: scaledPos.y)
+        .position(x: position.x, y: position.y + project.previewLayout.captionHeight / 2)
         .gesture(
-            DragGesture()
+            DragGesture(coordinateSpace: .named("previewCanvas"))
                 .onChanged { value in
-                    onDrag(CGPoint(x: value.location.x / scale, y: value.location.y / scale))
+                    let start = dragStart ?? position
+                    dragStart = start
+                    onDrag(CGPoint(
+                        x: start.x + value.translation.width,
+                        y: start.y + value.translation.height
+                    ))
+                }
+                .onEnded { _ in
+                    dragStart = nil
                 }
         )
     }
@@ -130,6 +130,7 @@ struct PreviewCanvasView: View {
             if let url = appURL {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
                     .resizable()
+                    .scaledToFit()
             } else {
                 RoundedRectangle(cornerRadius: 14)
                     .fill(Theme.accent.opacity(0.3))
@@ -144,13 +145,7 @@ struct PreviewCanvasView: View {
     private var applicationsIcon: some View {
         Image(nsImage: NSWorkspace.shared.icon(forFile: "/Applications"))
             .resizable()
-    }
-
-    private func clampPosition(_ pos: CGPoint) -> CGPoint {
-        CGPoint(
-            x: max(32, min(project.windowSize.width - 32, pos.x)),
-            y: max(32, min(project.windowSize.height - 32, pos.y))
-        )
+            .scaledToFit()
     }
 
     // MARK: - Drop / Browse
