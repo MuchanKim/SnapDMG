@@ -45,6 +45,7 @@ final class DMGBuilder {
                 throw DMGBuilderError.backgroundImageNotFound(bgPath.path)
             }
         }
+        let background = try config.backgroundImagePath.map { try BackgroundImage(url: $0) }
 
         let tempDir = fm.temporaryDirectory.appendingPathComponent("snapdmg-\(UUID().uuidString)")
         let tempDMG = tempDir.appendingPathComponent("temp.dmg")
@@ -55,8 +56,12 @@ final class DMGBuilder {
         defer { try? fm.removeItem(at: tempDir) }
 
         do {
+            let preparedBackground = tempDir.appendingPathComponent("background.png")
+            if let background {
+                try background.writePNG(to: preparedBackground, windowSize: config.windowSize)
+            }
             let appSize = try directorySize(at: config.appPath)
-            let bgSize = config.backgroundImagePath.flatMap { try? Data(contentsOf: $0).count } ?? 0
+            let bgSize = background == nil ? 0 : try Data(contentsOf: preparedBackground).count
             let totalSize = appSize + bgSize + 10_000_000
             let sizeMB = max(16, (totalSize / 1_000_000) + 1)
 
@@ -88,11 +93,11 @@ final class DMGBuilder {
                                        withDestinationPath: "/Applications")
 
             var bgFileName: String?
-            if let bgPath = config.backgroundImagePath {
+            if background != nil {
                 let bgDir = mountPoint.appendingPathComponent(".background")
                 try fm.createDirectory(at: bgDir, withIntermediateDirectories: true)
-                bgFileName = bgPath.lastPathComponent
-                try fm.copyItem(at: bgPath, to: bgDir.appendingPathComponent(bgFileName!))
+                bgFileName = "background.png"
+                try fm.copyItem(at: preparedBackground, to: bgDir.appendingPathComponent("background.png"))
             }
 
             onProgress?("Writing .DS_Store...")

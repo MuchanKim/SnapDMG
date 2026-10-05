@@ -14,8 +14,9 @@ struct ContentView: View {
         iconPositions: Preset.classic.iconPositions(for: CGSize(width: 540, height: 380))
     )
     @State private var appURL: URL?
+    @State private var backgroundImage: BackgroundImage?
     @State private var isBuilding = false
-    @State private var buildError: String?
+    @State private var errorMessage: String?
     @State private var showAlert = false
     @State private var projectFileURL: URL?
     @State private var isSidebarCollapsed = false
@@ -30,6 +31,8 @@ struct ContentView: View {
                     isCollapsed: isSidebarCollapsed,
                     isBuilding: isBuilding,
                     onSelectApp: selectApp,
+                    onSelectBackground: selectBackground,
+                    onRemoveBackground: removeBackground,
                     onBuild: buildDMG,
                     onSave: saveProject,
                     onOpen: openProject
@@ -37,7 +40,7 @@ struct ContentView: View {
                 .frame(width: isSidebarCollapsed ? layout.collapsedSidebarWidth : layout.sidebarWidth)
                 .disabled(isBuilding)
 
-                PreviewCanvasView(project: $project, appURL: $appURL, onSelectApp: selectApp)
+                PreviewCanvasView(project: $project, appURL: $appURL, backgroundImage: backgroundImage?.image, onSelectApp: selectApp)
                     .disabled(isBuilding)
             }
             .padding(.horizontal, 12)
@@ -60,10 +63,10 @@ struct ContentView: View {
                 .accessibilityIdentifier("sidebar-toggle")
             }
         }
-        .alert("Build Error", isPresented: $showAlert) {
+        .alert("Error", isPresented: $showAlert) {
             Button("OK") {}
         } message: {
-            Text(buildError ?? "Unknown error")
+            Text(errorMessage ?? "Unknown error")
         }
     }
 
@@ -81,7 +84,7 @@ struct ContentView: View {
             outputPath: outputURL,
             volumeName: project.appName,
             windowSize: project.windowSize,
-            backgroundImagePath: nil,
+            backgroundImagePath: project.backgroundImagePath.map { URL(fileURLWithPath: $0) },
             iconPositions: project.iconPositions,
             iconSize: project.iconSize
         )
@@ -91,7 +94,7 @@ struct ContentView: View {
                 let builder = DMGBuilder()
                 try await builder.build(config: config)
             } catch {
-                buildError = error.localizedDescription
+                errorMessage = error.localizedDescription
                 showAlert = true
             }
             isBuilding = false
@@ -109,6 +112,26 @@ struct ContentView: View {
         project.appName = url.deletingPathExtension().lastPathComponent
     }
 
+    private func selectBackground() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.png, .jpeg]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let image = try BackgroundImage(url: url)
+            backgroundImage = image
+            project.backgroundImagePath = url.path
+        } catch {
+            errorMessage = error.localizedDescription
+            showAlert = true
+        }
+    }
+
+    private func removeBackground() {
+        backgroundImage = nil
+        project.backgroundImagePath = nil
+    }
+
     private func saveProject() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.init(filenameExtension: "snapdmg")!]
@@ -123,7 +146,7 @@ struct ContentView: View {
             try data.write(to: url)
             projectFileURL = url
         } catch {
-            buildError = "Failed to save: \(error.localizedDescription)"
+            errorMessage = "Failed to save: \(error.localizedDescription)"
             showAlert = true
         }
     }
@@ -139,12 +162,21 @@ struct ContentView: View {
             let loadedProject = try JSONDecoder().decode(SnapDMGProject.self, from: data)
             project = loadedProject
             appURL = nil
+            backgroundImage = nil
+            if let path = loadedProject.backgroundImagePath {
+                do {
+                    backgroundImage = try BackgroundImage(url: URL(fileURLWithPath: path))
+                } catch {
+                    errorMessage = "Project opened, but the background could not be loaded. \(error.localizedDescription)"
+                    showAlert = true
+                }
+            }
             projectFileURL = url
         } catch DecodingError.dataCorrupted(let context) {
-            buildError = "Failed to open: \(context.debugDescription)"
+            errorMessage = "Failed to open: \(context.debugDescription)"
             showAlert = true
         } catch {
-            buildError = "Failed to open: \(error.localizedDescription)"
+            errorMessage = "Failed to open: \(error.localizedDescription)"
             showAlert = true
         }
     }

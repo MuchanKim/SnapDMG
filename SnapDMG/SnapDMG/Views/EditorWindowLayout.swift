@@ -23,6 +23,6 @@ enum EditorWindowLayout {
 
     var sidebarWidth: CGFloat { self == .standard ? 236 : 220 }
     var collapsedSidebarWidth: CGFloat { 54 }
-    var contentPadding: CGFloat { self == .standard ? 14 : 12 }
-    var contentSpacing: CGFloat { self == .standard ? 12 : 10 }
+    var contentPadding: CGFloat { 10 }
+    var contentSpacing: CGFloat { 8 }
 }
