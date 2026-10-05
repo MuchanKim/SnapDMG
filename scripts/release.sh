@@ -54,7 +54,8 @@ xcodebuild -exportArchive -archivePath "$signing_dir/SnapDMG.xcarchive" \
   -exportPath "$signing_dir/export" -exportOptionsPlist "$signing_dir/ExportOptions.plist"
 app="$signing_dir/export/SnapDMG.app"
 codesign --verify --deep --strict --verbose=2 "$app"
-lipo -verify_arch arm64 x86_64 "$app/Contents/MacOS/SnapDMG"
+lipo "$app/Contents/MacOS/SnapDMG" -verify_arch arm64
+lipo "$app/Contents/MacOS/SnapDMG" -verify_arch x86_64
 
 ditto -c -k --sequesterRsrc --keepParent "$app" "$signing_dir/notarization.zip"
 if ! xcrun notarytool submit "$signing_dir/notarization.zip" \
