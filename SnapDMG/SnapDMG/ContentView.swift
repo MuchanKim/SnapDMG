@@ -97,8 +97,13 @@ struct ContentView: View {
 
         do {
             let data = try Data(contentsOf: url)
-            project = try JSONDecoder().decode(SnapDMGProject.self, from: data)
+            let loadedProject = try JSONDecoder().decode(SnapDMGProject.self, from: data)
+            project = loadedProject
+            appURL = nil
             projectFileURL = url
+        } catch DecodingError.dataCorrupted(let context) {
+            buildError = "Failed to open: \(context.debugDescription)"
+            showAlert = true
         } catch {
             buildError = "Failed to open: \(error.localizedDescription)"
             showAlert = true
