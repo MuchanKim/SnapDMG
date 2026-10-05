@@ -88,7 +88,6 @@ struct PreviewCanvasView: View {
             .shadow(color: .black.opacity(0.4), radius: 12)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .onChange(of: project.appName, initial: true) { _, _ in project.clampIconPositions() }
     }
 
     // MARK: - Icons
