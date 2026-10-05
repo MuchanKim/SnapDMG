@@ -1,7 +1,12 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+@MainActor
 struct ContentView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    let layout: EditorWindowLayout
+
     @State private var project = SnapDMGProject(
         appName: "",
         windowSize: CGSize(width: 540, height: 380),
@@ -13,26 +18,48 @@ struct ContentView: View {
     @State private var buildError: String?
     @State private var showAlert = false
     @State private var projectFileURL: URL?
+    @State private var isSidebarCollapsed = false
 
     var body: some View {
-        HStack(spacing: 0) {
-            SidebarView(
-                project: $project,
-                appURL: $appURL,
-                onBuild: buildDMG,
-                onSave: saveProject,
-                onOpen: openProject
-            )
+        GlassEffectContainer(spacing: 12) {
+            HStack(spacing: 12) {
+                SidebarView(
+                    project: $project,
+                    appURL: appURL,
+                    layout: layout,
+                    isCollapsed: isSidebarCollapsed,
+                    isBuilding: isBuilding,
+                    onSelectApp: selectApp,
+                    onBuild: buildDMG,
+                    onSave: saveProject,
+                    onOpen: openProject
+                )
+                .frame(width: isSidebarCollapsed ? layout.collapsedSidebarWidth : layout.sidebarWidth)
+                .disabled(isBuilding)
 
-            Divider().overlay(Theme.border)
-
-            PreviewCanvasView(
-                project: $project,
-                appURL: $appURL
-            )
+                PreviewCanvasView(project: $project, appURL: $appURL, onSelectApp: selectApp)
+                    .disabled(isBuilding)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
-        .frame(minWidth: 480, minHeight: 320)
-        .background(Theme.canvasBackground)
+        .frame(width: layout.windowSize.width, height: layout.windowSize.height)
+        .background(.windowBackground)
+        .navigationTitle("SnapDMG")
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.3)) {
+                        isSidebarCollapsed.toggle()
+                    }
+                } label: {
+                    Label("Settings", systemImage: "sidebar.left")
+                }
+                .help(isSidebarCollapsed ? "Show Sidebar" : "Hide Sidebar")
+                .accessibilityLabel(isSidebarCollapsed ? "Show Sidebar" : "Hide Sidebar")
+                .accessibilityIdentifier("sidebar-toggle")
+            }
+        }
         .alert("Build Error", isPresented: $showAlert) {
             Button("OK") {}
         } message: {
@@ -41,7 +68,7 @@ struct ContentView: View {
     }
 
     private func buildDMG() {
-        guard let appURL else { return }
+        guard !isBuilding, let appURL else { return }
 
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.init(filenameExtension: "dmg")!]
@@ -49,25 +76,37 @@ struct ContentView: View {
 
         guard panel.runModal() == .OK, let outputURL = panel.url else { return }
 
+        let config = DMGBuilder.BuildConfig(
+            appPath: appURL,
+            outputPath: outputURL,
+            volumeName: project.appName,
+            windowSize: project.windowSize,
+            backgroundImagePath: nil,
+            iconPositions: project.iconPositions,
+            iconSize: project.iconSize
+        )
         isBuilding = true
         Task {
             do {
                 let builder = DMGBuilder()
-                try await builder.build(config: .init(
-                    appPath: appURL,
-                    outputPath: outputURL,
-                    volumeName: project.appName,
-                    windowSize: project.windowSize,
-                    backgroundImagePath: nil,
-                    iconPositions: project.iconPositions,
-                    iconSize: project.iconSize
-                ))
+                try await builder.build(config: config)
             } catch {
                 buildError = error.localizedDescription
                 showAlert = true
             }
             isBuilding = false
         }
+    }
+
+    private func selectApp() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.applicationBundle]
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url,
+              url.pathExtension == "app" else { return }
+        appURL = url
+        project.appName = url.deletingPathExtension().lastPathComponent
     }
 
     private func saveProject() {

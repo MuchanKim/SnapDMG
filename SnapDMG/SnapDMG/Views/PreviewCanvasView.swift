@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct PreviewCanvasView: View {
     @Binding var project: SnapDMGProject
     @Binding var appURL: URL?
+    var onSelectApp: () -> Void
     @State private var isTargeted = false
     @State private var dragStart: CGPoint?
 
@@ -20,6 +21,7 @@ struct PreviewCanvasView: View {
                 dropZoneContent
             }
         }
+        .clipShape(RoundedRectangle(cornerRadius: 16))
         .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
             handleDrop(providers)
         }
@@ -28,28 +30,32 @@ struct PreviewCanvasView: View {
     // MARK: - 드롭존 (앱 없을 때)
 
     private var dropZoneContent: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "app.badge.plus")
-                .font(.system(size: 48))
-                .foregroundStyle(isTargeted ? Theme.accent : Theme.textSecondary.opacity(0.5))
+        VStack(spacing: 16) {
+            Image(systemName: "shippingbox")
+                .font(.system(size: 44, weight: .light))
+                .foregroundStyle(isTargeted ? Theme.accent : .secondary)
+                .accessibilityHidden(true)
 
-            Text("Drop .app here")
-                .font(.title3)
-                .foregroundStyle(isTargeted ? Theme.accent : Theme.textAccent)
+            VStack(spacing: 6) {
+                Text("Add an App")
+                    .font(.title3.weight(.semibold))
+                Text("Drop an app here or choose one below")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
 
-            Text("or click to browse")
-                .font(.caption)
-                .foregroundStyle(Theme.textSecondary.opacity(0.5))
+            Button(action: onSelectApp) {
+                Text("Select App…").foregroundStyle(.primary)
+            }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
+        .background(Theme.cardBackground.opacity(0.7), in: RoundedRectangle(cornerRadius: 16))
+        .overlay {
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8]))
+                .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [6, 5]))
                 .foregroundStyle(isTargeted ? Theme.accent : Theme.border)
-                .padding(24)
-        )
-        .onTapGesture {
-            browseForApp()
         }
     }
 
@@ -78,14 +84,14 @@ struct PreviewCanvasView: View {
             }
             .frame(width: project.windowSize.width, height: project.windowSize.height)
             .coordinateSpace(name: "previewCanvas")
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: 12)
                     .strokeBorder(Theme.border, lineWidth: 1)
             )
             .scaleEffect(scale)
             .frame(width: project.windowSize.width * scale, height: project.windowSize.height * scale)
-            .shadow(color: .black.opacity(0.4), radius: 12)
+            .shadow(color: .black.opacity(0.07), radius: 12, y: 5)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
@@ -163,13 +169,4 @@ struct PreviewCanvasView: View {
         return true
     }
 
-    private func browseForApp() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.init(filenameExtension: "app")!]
-        panel.canChooseDirectories = true
-        guard panel.runModal() == .OK, let url = panel.url,
-              url.pathExtension == "app" else { return }
-        appURL = url
-        project.appName = url.deletingPathExtension().lastPathComponent
-    }
 }
