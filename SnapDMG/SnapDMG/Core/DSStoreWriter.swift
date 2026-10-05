@@ -210,8 +210,6 @@ nonisolated enum DSStoreWriter {
         // Total file size: 0x2004 + 2048 = 0x2804 = 10244 bytes
         var file = Data(count: 0x2804)
 
-        var pos = 0
-
         func write(_ data: Data, at offset: Int) {
             for (i, byte) in data.enumerated() {
                 file[offset + i] = byte
