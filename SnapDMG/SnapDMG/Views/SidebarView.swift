@@ -2,193 +2,22 @@ import SwiftUI
 
 @MainActor
 struct SidebarView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var project: SnapDMGProject
-    @Binding var appURL: URL?
+    let appURL: URL?
+    let layout: EditorWindowLayout
+    let isCollapsed: Bool
+    let isBuilding: Bool
+    var onSelectApp: () -> Void
     var onBuild: () -> Void
     var onSave: () -> Void
     var onOpen: () -> Void
 
-    @State private var widthText = ""
-    @State private var heightText = ""
-    @State private var windowSizeError: String?
-    @FocusState private var focusedDimension: Dimension?
-
-    @State private var selectedPreset: Preset? = .classic
-    @State private var selectedWindowPreset: WindowSizePreset? = .standard
-
-    private enum Dimension { case width, height }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Layout
-            sectionLabel("LAYOUT")
-            HStack(spacing: 3) {
-                ForEach(Preset.allCases) { preset in
-                    presetButton(
-                        title: preset.displayName,
-                        isSelected: selectedPreset == preset
-                    ) {
-                        selectedPreset = preset
-                        project.iconPositions = preset.iconPositions(for: project.windowSize)
-                        project.clampIconPositions()
-                    }
-                }
-            }
-
-            Divider().overlay(Theme.border)
-
-            // Icon Size
-            HStack {
-                sectionLabel("ICON SIZE")
-                Spacer()
-                Text("\(Int(project.iconSize)) px")
-                    .font(.caption2).monospacedDigit()
-                    .foregroundStyle(Theme.textAccent)
-            }
-            Slider(value: iconSizeBinding, in: 48...maximumIconSize, step: 8)
-                .tint(Theme.accent)
-                .controlSize(.small)
-
-            Divider().overlay(Theme.border)
-
-            // Window Size
-            sectionLabel("WINDOW")
-            HStack(spacing: 4) {
-                Text("W").font(.caption2).foregroundStyle(Theme.textSecondary)
-                TextField("", text: $widthText)
-                    .focused($focusedDimension, equals: .width)
-                    .accessibilityLabel("Window width")
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 46)
-                    .controlSize(.small)
-                Text("H").font(.caption2).foregroundStyle(Theme.textSecondary)
-                TextField("", text: $heightText)
-                    .focused($focusedDimension, equals: .height)
-                    .accessibilityLabel("Window height")
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 46)
-                    .controlSize(.small)
-            }
-
-            if let windowSizeError {
-                Text(windowSizeError)
-                    .font(.caption2)
-                    .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 3) {
-                ForEach(WindowSizePreset.allCases) { preset in
-                    presetButton(
-                        title: preset.displayName,
-                        subtitle: preset.dimensionLabel,
-                        isSelected: selectedWindowPreset == preset
-                    ) {
-                        selectedWindowPreset = preset
-                        project.windowSize = preset.size
-                        if let selectedPreset {
-                            project.iconPositions = selectedPreset.iconPositions(for: project.windowSize)
-                        }
-                        syncWindowFields()
-                        project.clampIconPositions()
-                    }
-                }
-            }
-
-            Spacer()
-
-            // Save / Open
-            HStack(spacing: 4) {
-                Button(action: onOpen) {
-                    Image(systemName: "folder")
-                        .font(.caption2)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .help("Open Project")
-
-                Button {
-                    if commitWindowSize() { onSave() }
-                } label: {
-                    Image(systemName: "square.and.arrow.down")
-                        .font(.caption2)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(appURL == nil)
-                .help("Save Project")
-            }
-
-            // Build
-            Button {
-                if commitWindowSize() { onBuild() }
-            } label: {
-                Text("Build DMG")
-                    .font(.caption).fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 5)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(Theme.accent)
-            .disabled(appURL == nil)
-
-            Text("snapDMG 1.0.0 · © 2026 moolab")
-                .font(.system(size: 9))
-                .foregroundStyle(Theme.textSecondary.opacity(0.4))
-                .frame(maxWidth: .infinity)
-        }
-        .padding(10)
-        .frame(width: 160)
-        .background(Theme.sidebarBackground)
-        .onAppear { syncWindowFields() }
-        .onChange(of: project.windowSize) { _, _ in syncWindowFields() }
-        .onChange(of: focusedDimension) { oldValue, _ in
-            if oldValue != nil { commitWindowSize() }
-        }
-        .onSubmit { commitWindowSize() }
-    }
-
-    // MARK: - Components
-
-    private func sectionLabel(_ text: String) -> some View {
-        Text(text).font(.caption).fontWeight(.medium).foregroundStyle(Theme.textSecondary)
-    }
-
-    private func presetButton(
-        title: String,
-        subtitle: String? = nil,
-        isSelected: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            VStack(spacing: 1) {
-                Text(title)
-                    .font(.caption2).fontWeight(.medium)
-                    .foregroundStyle(isSelected ? .white : Theme.textSecondary)
-                if let sub = subtitle {
-                    Text(sub)
-                        .font(.system(size: 8))
-                        .foregroundStyle(isSelected ? .white.opacity(0.7) : Theme.textSecondary.opacity(0.6))
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(isSelected ? Theme.accent : Theme.controlBackground)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Bindings
+    @State private var isWindowSizePresented = false
 
     private var maximumIconSize: Double {
-        let layout = project.previewLayout
         let available = min(project.windowSize.width,
-                            project.windowSize.height - layout.captionHeight) - PreviewLayout.edgePadding * 2
+                            project.windowSize.height - project.previewLayout.captionHeight) - PreviewLayout.edgePadding * 2
         return max(48, min(256, floor(available / 8) * 8))
     }
 
@@ -202,33 +31,263 @@ struct SidebarView: View {
         )
     }
 
-    private func syncWindowFields() {
-        widthText = String(Int(project.windowSize.width))
-        heightText = String(Int(project.windowSize.height))
-        windowSizeError = nil
+    private var windowSizeLabel: String {
+        let name = WindowSizePreset.matching(project.windowSize)?.displayName ?? "Custom"
+        return "\(name) · \(Int(project.windowSize.width)) × \(Int(project.windowSize.height))"
     }
 
-    @discardableResult
-    private func commitWindowSize() -> Bool {
-        guard let width = Double(widthText), let height = Double(heightText) else {
-            windowSizeError = "Enter a number for W and H."
-            return false
+    var body: some View {
+        VStack(spacing: 10) {
+            Group {
+                if isCollapsed {
+                    collapsedControls
+                } else {
+                    expandedControls
+                }
+            }
+            .frame(maxHeight: .infinity)
+            .modifier(EditorControlPanel())
+
+            VStack(spacing: 6) {
+                buildButton
+                if !isCollapsed {
+                    HStack(spacing: 6) {
+                        Text("© moolab")
+                        if let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String {
+                            Text("· v\(version)")
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityElement(children: .combine)
+                }
+            }
         }
-        return updateWindowSize(CGSize(width: width, height: height))
+        .sheet(isPresented: $isWindowSizePresented) {
+            WindowSizeSheet(project: $project)
+        }
     }
 
-    private func updateWindowSize(_ size: CGSize) -> Bool {
-        let size = CGSize(width: size.width.rounded(.down), height: size.height.rounded(.down))
-        guard project.previewLayout.containsWindowSize(size) else {
-            let minimum = project.previewLayout.minimumWindowSize
-            windowSizeError = "Enter a valid size of at least \(Int(minimum.width)) × \(Int(minimum.height))."
-            return false
+    private var expandedControls: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: layout.contentSpacing) {
+                appSelectionButton
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: layout.contentSpacing) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        sectionLabel("Icon Layout")
+                        GlassEffectContainer(spacing: 8) {
+                            HStack(spacing: 8) {
+                                layoutButton("Horizontal", preset: .classic)
+                                layoutButton("Vertical", preset: .topBottom)
+                            }
+                        }
+                    }
+
+                    VStack(spacing: 8) {
+                        HStack {
+                            sectionLabel("Icon Size")
+                            Spacer()
+                            Text("\(Int(project.iconSize)) px")
+                                .font(.callout).monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                        Slider(value: iconSizeBinding, in: 48...maximumIconSize, step: 8)
+                            .accessibilityLabel("Icon Size")
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        sectionLabel("Window Size")
+                        Menu {
+                            ForEach(WindowSizePreset.allCases) { preset in
+                                Button("\(preset.displayName) · \(preset.dimensionLabel)") {
+                                    project.windowSize = preset.size
+                                    project.clampIconPositions()
+                                }
+                            }
+                            Divider()
+                            Button("Custom…") { isWindowSizePresented = true }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(windowSizeLabel)
+                                    .font(.callout).monospacedDigit()
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.65)
+                                Spacer(minLength: 0)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 10)
+                            .frame(height: 36)
+                            .background(Theme.cardBackground.opacity(0.65), in: RoundedRectangle(cornerRadius: 10))
+                            .contentShape(.rect(cornerRadius: 10))
+                        }
+                        .menuStyle(.button)
+                        .buttonStyle(.plain)
+                        .menuIndicator(.hidden)
+                        .accessibilityLabel("Window Size")
+                        .accessibilityValue(windowSizeLabel)
+                        .accessibilityIdentifier("window-size-menu")
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Divider()
+                    HStack(spacing: 8) {
+                        Button(action: onOpen) {
+                            Label("Open", systemImage: "folder")
+                                .foregroundStyle(.primary)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .help("Open a .snapdmg project")
+                        .accessibilityIdentifier("open-project")
+                        Button(action: onSave) {
+                            Label("Save", systemImage: "square.and.arrow.down")
+                                .foregroundStyle(.primary)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .help("Save a .snapdmg project")
+                        .accessibilityIdentifier("save-project")
+                    }
+                    .font(.callout)
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                    .frame(height: 36)
+                }
+            }
+            .padding(layout.contentPadding)
         }
-        windowSizeError = nil
-        project.windowSize = size
-        selectedWindowPreset = WindowSizePreset.matching(size)
-        project.clampIconPositions()
-        syncWindowFields()
-        return true
+        .scrollIndicators(.hidden)
+    }
+
+    private var appSelectionButton: some View {
+        Button(action: onSelectApp) {
+            HStack(spacing: 10) {
+                Group {
+                    if let appURL {
+                        Image(nsImage: NSWorkspace.shared.icon(forFile: appURL.path))
+                            .resizable()
+                            .scaledToFit()
+                    } else {
+                        Image(systemName: "app")
+                            .font(.system(size: 26, weight: .light))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 42, height: 42)
+                .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(appURL?.deletingPathExtension().lastPathComponent ?? "Select App…")
+                        .font(.body.weight(.semibold))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text(appURL == nil ? "Application (.app)" : "Change App…")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(minHeight: 52)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .help(appURL?.path ?? "Select an app to include in the DMG")
+        .accessibilityIdentifier("select-app")
+    }
+
+    private var collapsedControls: some View {
+        VStack(spacing: 12) {
+            railButton("Change App", symbol: "app", action: onSelectApp)
+            railButton("Open Project", symbol: "folder", action: onOpen)
+            railButton("Save Project", symbol: "square.and.arrow.down", action: onSave)
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 16)
+        .padding(.horizontal, 8)
+    }
+
+    private var buildButton: some View {
+        Button(action: onBuild) {
+            Group {
+                if isCollapsed {
+                    Image(systemName: "shippingbox")
+                } else {
+                    Label(isBuilding ? "Building…" : "Build DMG…", systemImage: "shippingbox")
+                }
+            }
+            .font(.body.weight(.medium))
+            .frame(maxWidth: .infinity)
+            .frame(height: 28)
+        }
+        .buttonStyle(.glassProminent)
+        .controlSize(.large)
+        .disabled(appURL == nil || isBuilding)
+        .help(isBuilding ? "Building DMG" : "Build DMG")
+        .accessibilityLabel(isBuilding ? "Building DMG" : "Build DMG")
+        .accessibilityIdentifier("build-dmg")
+    }
+
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text).font(.callout.weight(.medium))
+    }
+
+    private func layoutButton(_ title: String, preset: Preset) -> some View {
+        var expected = project
+        expected.iconPositions = preset.iconPositions(for: project.windowSize)
+        expected.clampIconPositions()
+        let isSelected = project.iconPositions == expected.iconPositions
+        return Button {
+            withAnimation(reduceMotion ? nil : .smooth(duration: 0.2)) {
+                project.iconPositions = expected.iconPositions
+            }
+        } label: {
+            VStack(spacing: 6) {
+                Group {
+                    if preset == .classic {
+                        HStack(spacing: 4) {
+                            RoundedRectangle(cornerRadius: 2).frame(width: 10, height: 14)
+                            RoundedRectangle(cornerRadius: 2).frame(width: 10, height: 14)
+                        }
+                    } else {
+                        VStack(spacing: 3) {
+                            RoundedRectangle(cornerRadius: 2).frame(width: 14, height: 6)
+                            RoundedRectangle(cornerRadius: 2).frame(width: 14, height: 6)
+                        }
+                    }
+                }
+                .frame(height: 16)
+                .foregroundStyle(isSelected ? Theme.accent : .secondary)
+                .accessibilityHidden(true)
+                Text(title).font(.callout.weight(isSelected ? .medium : .regular))
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 48)
+            .foregroundStyle(isSelected ? Theme.accent : .primary)
+            .contentShape(.rect(cornerRadius: 10))
+            .glassEffect(.regular.tint(isSelected ? Theme.accent.opacity(0.16) : .clear).interactive(), in: .rect(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func railButton(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.body)
+                .frame(width: 30, height: 30)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .help(title)
+        .accessibilityLabel(title)
     }
 }

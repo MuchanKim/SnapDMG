@@ -17,9 +17,9 @@ enum Preset: String, CaseIterable, Identifiable {
 
     var description: String {
         switch self {
-        case .classic: "좌-우 배치 (가장 보편적)"
-        case .centered: "중앙 나란히 배치"
-        case .topBottom: "상-하 배치 (Raycast 스타일)"
+        case .classic: "Horizontal layout (standard)"
+        case .centered: "Centered layout"
+        case .topBottom: "Vertical layout (Raycast style)"
         }
     }
 
