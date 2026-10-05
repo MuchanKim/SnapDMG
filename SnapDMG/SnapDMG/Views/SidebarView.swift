@@ -8,6 +8,7 @@ struct SidebarView: View {
     let layout: EditorWindowLayout
     let isCollapsed: Bool
     let isBuilding: Bool
+    let buildStatus: String
     var onSelectApp: () -> Void
     var onSelectBackground: () -> Void
     var onRemoveBackground: () -> Void
@@ -47,6 +48,7 @@ struct SidebarView: View {
                     expandedControls
                 }
             }
+            .disabled(isBuilding)
             .frame(maxHeight: .infinity)
             .modifier(EditorControlPanel())
 
@@ -255,11 +257,19 @@ struct SidebarView: View {
 
     private var buildButton: some View {
         Button(action: onBuild) {
-            Group {
-                if isCollapsed {
+            HStack(spacing: 8) {
+                if isBuilding {
+                    ProgressView()
+                        .controlSize(.small)
+                    if !isCollapsed {
+                        Text(buildStatus)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                } else if isCollapsed {
                     Image(systemName: "shippingbox")
                 } else {
-                    Label(isBuilding ? "Building…" : "Build DMG…", systemImage: "shippingbox")
+                    Label("Build DMG…", systemImage: "shippingbox")
                 }
             }
             .font(.body.weight(.medium))
@@ -271,6 +281,7 @@ struct SidebarView: View {
         .disabled(appURL == nil || isBuilding)
         .help(isBuilding ? "Building DMG" : "Build DMG")
         .accessibilityLabel(isBuilding ? "Building DMG" : "Build DMG")
+        .accessibilityValue(isBuilding ? buildStatus : "")
         .accessibilityIdentifier("build-dmg")
     }
 

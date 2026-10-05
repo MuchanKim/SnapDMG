@@ -1,6 +1,6 @@
 import Foundation
 
-struct IconPositions: Codable, Equatable {
+nonisolated struct IconPositions: Codable, Equatable, Sendable {
     var app: CGPoint
     var applications: CGPoint
 }
