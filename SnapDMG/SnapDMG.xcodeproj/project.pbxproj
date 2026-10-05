@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A0710C060000000000000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A0710C060000000000000003 /* Sparkle */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		D19A54932F73A57800F8C637 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,6 +28,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		A0710C060000000000000005 /* Config/Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Config/Info.plist; sourceTree = "<group>"; };
+		A0710C060000000000000004 /* Config/Updates.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config/Updates.xcconfig; sourceTree = "<group>"; };
 		D19A54852F73A57600F8C637 /* SnapDMG.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SnapDMG.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D19A54922F73A57800F8C637 /* SnapDMGTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SnapDMGTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D19A549C2F73A57800F8C637 /* SnapDMGUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SnapDMGUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -52,6 +58,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A0710C060000000000000001 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -75,6 +82,8 @@
 		D19A547C2F73A57600F8C637 = {
 			isa = PBXGroup;
 			children = (
+				A0710C060000000000000005 /* Config/Info.plist */,
+				A0710C060000000000000004 /* Config/Updates.xcconfig */,
 				D19A54872F73A57600F8C637 /* SnapDMG */,
 				D19A54952F73A57800F8C637 /* SnapDMGTests */,
 				D19A549F2F73A57800F8C637 /* SnapDMGUITests */,
@@ -112,6 +121,7 @@
 			);
 			name = SnapDMG;
 			packageProductDependencies = (
+				A0710C060000000000000003 /* Sparkle */,
 			);
 			productName = SnapDMG;
 			productReference = D19A54852F73A57600F8C637 /* SnapDMG.app */;
@@ -195,6 +205,9 @@
 			);
 			mainGroup = D19A547C2F73A57600F8C637;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A0710C060000000000000002 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D19A54862F73A57600F8C637 /* Products */;
 			projectDirPath = "";
@@ -391,6 +404,7 @@
 		};
 		D19A54A72F73A57800F8C637 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A0710C060000000000000004 /* Config/Updates.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = appIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -423,6 +437,7 @@
 		};
 		D19A54A82F73A57800F8C637 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A0710C060000000000000004 /* Config/Updates.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = appIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -573,6 +588,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A0710C060000000000000002 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = exactVersion;
+				version = 2.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A0710C060000000000000003 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A0710C060000000000000002 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D19A547D2F73A57600F8C637 /* Project object */;
 }

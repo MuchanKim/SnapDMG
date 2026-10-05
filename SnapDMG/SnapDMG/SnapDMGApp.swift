@@ -4,6 +4,8 @@ import SwiftUI
 struct SnapDMGApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
+    @State private var appUpdater = AppUpdater()
+
     var body: some Scene {
         WindowGroup {
             let layout = EditorWindowLayout.fitting(screenSize: NSScreen.main?.visibleFrame.size ?? .zero)
@@ -13,6 +15,12 @@ struct SnapDMGApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unifiedCompact)
         .windowResizability(.contentSize)
+        .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…", action: appUpdater.checkForUpdates)
+                    .disabled(!appUpdater.canCheckForUpdates)
+            }
+        }
     }
 }
 

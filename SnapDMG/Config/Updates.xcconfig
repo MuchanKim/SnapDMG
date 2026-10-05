@@ -1,0 +1,6 @@
+// 공개 HTTPS appcast 주소와 generate_keys가 출력하는 공개 키
+// xcconfig의 // 주석 해석을 피하도록 URL은 https:/$()/ 형태로 작성한다.
+SPARKLE_FEED_URL = https:/$()/github.com/MuchanKim/SnapDMG/releases/latest/download/appcast.xml
+SPARKLE_PUBLIC_ED_KEY = S5jZKZIiAFGL6TI4k37qPq868d46A+xPLCe7Y5FmGEw=
+
+INFOPLIST_FILE = Config/Info.plist
