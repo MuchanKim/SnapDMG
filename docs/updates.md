@@ -56,6 +56,6 @@ ditto -c -k --sequesterRsrc --keepParent /path/to/SnapDMG.app /path/to/updates/S
 - 새 버전에서 프로젝트 열기·저장이 정상인지 확인한다.
 - 자동 확인은 Sparkle의 사용자 동의와 확인 주기를 따른다. 수동 확인과 별도로 검증한다.
 
-CI/CD는 아직 구성하지 않았다. 앱 연동 빌드 성공만으로 서명된 버전 간 실제 업데이트가 검증된 것은 아니다.
+CI/CD workflow와 Secrets 설정, 태그 배포 방법은 [자동배포 설정](ci-cd.md)을 참고한다. 배포용 Secrets 등록 후 릴리즈 workflow를 실행할 수 있다. 앱 연동 빌드 성공만으로 서명된 버전 간 실제 업데이트가 검증된 것은 아니다.
 
 공식 자료: [Sparkle 설정](https://sparkle-project.org/documentation/), [SwiftUI 연동](https://sparkle-project.org/documentation/programmatic-setup/), [업데이트 게시](https://sparkle-project.org/documentation/publishing/), [라이선스](https://github.com/sparkle-project/Sparkle/blob/2.10.0/LICENSE), [Apple 멤버십](https://developer.apple.com/support/compare-memberships/).

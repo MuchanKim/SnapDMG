@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  push:
+    tags: [v*]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag, such as v1.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# Serialize releases so an older feed cannot replace a newer one.
+concurrency:
+  group: snapdmg-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Sign and publish release
+    if: github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: xcode-27
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate release version and source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git merge-base --is-ancestor HEAD origin/main
+          xcodebuild -project SnapDMG/SnapDMG.xcodeproj -scheme SnapDMG \
+            -configuration Release -showBuildSettings -json > "$RUNNER_TEMP/build-settings.json"
+          python3 scripts/release_metadata.py prepare "$RELEASE_TAG" "$RUNNER_TEMP/build-settings.json" "$RUNNER_TEMP/release"
+      - name: Build and run unit tests
+        run: bash scripts/check.sh "$RUNNER_TEMP/check"
+      - name: Sign, notarize, and prepare update
+        env:
+          DEVELOPER_ID_P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          APP_STORE_CONNECT_KEY_P8: ${{ secrets.APP_STORE_CONNECT_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: bash scripts/release.sh "$RUNNER_TEMP/check" "$RUNNER_TEMP/release"
+      - name: Publish verified assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/release_metadata.py publish "$RELEASE_TAG" "$RUNNER_TEMP/release"
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-test-results-${{ github.run_id }}
+          path: ${{ runner.temp }}/check/derived/Logs/Test/*.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
