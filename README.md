@@ -84,6 +84,10 @@ xcodebuild -project SnapDMG/SnapDMG.xcodeproj \
 
 For Developer ID signing, notarization, and Sparkle update feeds, see the [release guide](docs/updates.md) (Korean).
 
+## CI and releases
+
+Pull requests and pushes to `main` run unit tests and build a universal Release app on GitHub Actions. Release tags such as `v1.0` trigger signing, Apple notarization, Sparkle feed generation, and GitHub Release publication after validation. Signing secrets must be configured before publishing; see the [automation setup](docs/ci-cd.md) (Korean).
+
 ## License
 
 SnapDMG is available under the [MIT License](LICENSE).

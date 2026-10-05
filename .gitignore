@@ -14,6 +14,7 @@ xcuserdata/
 .build/
 Packages/
 Package.resolved
+!SnapDMG/SnapDMG.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
 # Test binaries
 *.dmg
