@@ -9,6 +9,8 @@ struct SidebarView: View {
     let isCollapsed: Bool
     let isBuilding: Bool
     var onSelectApp: () -> Void
+    var onSelectBackground: () -> Void
+    var onRemoveBackground: () -> Void
     var onBuild: () -> Void
     var onSave: () -> Void
     var onOpen: () -> Void
@@ -73,10 +75,12 @@ struct SidebarView: View {
             VStack(alignment: .leading, spacing: layout.contentSpacing) {
                 appSelectionButton
 
+                backgroundControls
+
                 Divider()
 
                 VStack(alignment: .leading, spacing: layout.contentSpacing) {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 6) {
                         sectionLabel("Icon Layout")
                         GlassEffectContainer(spacing: 8) {
                             HStack(spacing: 8) {
@@ -86,7 +90,7 @@ struct SidebarView: View {
                         }
                     }
 
-                    VStack(spacing: 8) {
+                    VStack(spacing: 4) {
                         HStack {
                             sectionLabel("Icon Size")
                             Spacer()
@@ -98,7 +102,7 @@ struct SidebarView: View {
                             .accessibilityLabel("Icon Size")
                     }
 
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 6) {
                         sectionLabel("Window Size")
                         Menu {
                             ForEach(WindowSizePreset.allCases) { preset in
@@ -121,7 +125,7 @@ struct SidebarView: View {
                                     .foregroundStyle(.secondary)
                             }
                             .padding(.horizontal, 10)
-                            .frame(height: 36)
+                            .frame(height: 32)
                             .background(Theme.cardBackground.opacity(0.65), in: RoundedRectangle(cornerRadius: 10))
                             .contentShape(.rect(cornerRadius: 10))
                         }
@@ -135,7 +139,7 @@ struct SidebarView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
                     Divider()
                     HStack(spacing: 8) {
                         Button(action: onOpen) {
@@ -145,6 +149,7 @@ struct SidebarView: View {
                         }
                         .help("Open a .snapdmg project")
                         .accessibilityIdentifier("open-project")
+                        .accessibilityLabel("Open Project")
                         Button(action: onSave) {
                             Label("Save", systemImage: "square.and.arrow.down")
                                 .foregroundStyle(.primary)
@@ -152,11 +157,12 @@ struct SidebarView: View {
                         }
                         .help("Save a .snapdmg project")
                         .accessibilityIdentifier("save-project")
+                        .accessibilityLabel("Save Project")
                     }
                     .font(.callout)
                     .buttonStyle(.bordered)
                     .controlSize(.regular)
-                    .frame(height: 36)
+                    .frame(height: 32)
                 }
             }
             .padding(layout.contentPadding)
@@ -196,7 +202,7 @@ struct SidebarView: View {
                     .foregroundStyle(.tertiary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(minHeight: 52)
+            .frame(minHeight: 44)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
@@ -207,12 +213,44 @@ struct SidebarView: View {
     private var collapsedControls: some View {
         VStack(spacing: 12) {
             railButton("Change App", symbol: "app", action: onSelectApp)
+            railButton("Choose Background", symbol: "photo", action: onSelectBackground)
             railButton("Open Project", symbol: "folder", action: onOpen)
             railButton("Save Project", symbol: "square.and.arrow.down", action: onSave)
             Spacer(minLength: 0)
         }
         .padding(.vertical, 16)
         .padding(.horizontal, 8)
+    }
+
+    private var backgroundControls: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            sectionLabel("Background")
+            HStack(spacing: 6) {
+                Button(action: onSelectBackground) {
+                    Label(project.backgroundImagePath.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "Choose Image…", systemImage: "photo")
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .foregroundStyle(.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .help(project.backgroundImagePath ?? "Choose a PNG or JPEG background image")
+                .accessibilityLabel("Choose Background Image")
+                .accessibilityValue(project.backgroundImagePath.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "None")
+                .accessibilityIdentifier("choose-background")
+                if project.backgroundImagePath != nil {
+                    Button(action: onRemoveBackground) {
+                        Image(systemName: "xmark").foregroundStyle(.primary)
+                    }
+                    .help("Remove Background")
+                    .accessibilityLabel("Remove Background")
+                    .accessibilityIdentifier("remove-background")
+                }
+            }
+            .font(.callout)
+            .buttonStyle(.bordered)
+            .controlSize(.regular)
+            .frame(height: 30)
+        }
     }
 
     private var buildButton: some View {
@@ -250,7 +288,7 @@ struct SidebarView: View {
                 project.iconPositions = expected.iconPositions
             }
         } label: {
-            VStack(spacing: 6) {
+            HStack(spacing: 6) {
                 Group {
                     if preset == .classic {
                         HStack(spacing: 4) {
@@ -270,7 +308,7 @@ struct SidebarView: View {
                 Text(title).font(.callout.weight(isSelected ? .medium : .regular))
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 48)
+            .frame(height: 32)
             .foregroundStyle(isSelected ? Theme.accent : .primary)
             .contentShape(.rect(cornerRadius: 10))
             .glassEffect(.regular.tint(isSelected ? Theme.accent.opacity(0.16) : .clear).interactive(), in: .rect(cornerRadius: 10))

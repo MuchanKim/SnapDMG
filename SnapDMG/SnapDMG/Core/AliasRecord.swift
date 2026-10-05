@@ -114,7 +114,9 @@ enum AliasRecord {
     private static func appendTagUTF16(_ data: inout Data, tag: UInt16, string: String) {
         let units = Swift.Array(string.utf16)
         data.appendUInt16(tag)
-        data.appendUInt16(UInt16(units.count * 2))
+        // Unicode 이름 태그는 UTF-16 코드 유닛 수를 payload 앞에 포함한다.
+        data.appendUInt16(UInt16(2 + units.count * 2))
+        data.appendUInt16(UInt16(units.count))
         for u in units { data.appendUInt16(u) }
     }
 

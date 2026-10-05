@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct PreviewCanvasView: View {
     @Binding var project: SnapDMGProject
     @Binding var appURL: URL?
+    let backgroundImage: CGImage?
     var onSelectApp: () -> Void
     @State private var isTargeted = false
     @State private var dragStart: CGPoint?
@@ -13,7 +14,7 @@ struct PreviewCanvasView: View {
         ZStack {
             Theme.canvasBackground
 
-            if appURL != nil {
+            if appURL != nil || backgroundImage != nil {
                 // 프리뷰 모드
                 previewContent
             } else {
@@ -68,19 +69,30 @@ struct PreviewCanvasView: View {
             ZStack {
                 Theme.cardBackground
 
-                iconView(
-                    position: project.iconPositions.app,
-                    label: project.previewAppName,
-                    icon: appIcon,
-                    onDrag: { project.iconPositions.app = project.previewLayout.clampedPosition($0, label: project.previewAppName) }
-                )
+                if let backgroundImage {
+                    Image(decorative: backgroundImage, scale: 1)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: project.windowSize.width, height: project.windowSize.height)
+                        .clipped()
+                        .accessibilityHidden(true)
+                }
 
-                iconView(
-                    position: project.iconPositions.applications,
-                    label: "Applications",
-                    icon: applicationsIcon,
-                    onDrag: { project.iconPositions.applications = project.previewLayout.clampedPosition($0, label: "Applications") }
-                )
+                if appURL != nil {
+                    iconView(
+                        position: project.iconPositions.app,
+                        label: project.previewAppName,
+                        icon: appIcon,
+                        onDrag: { project.iconPositions.app = project.previewLayout.clampedPosition($0, label: project.previewAppName) }
+                    )
+
+                    iconView(
+                        position: project.iconPositions.applications,
+                        label: "Applications",
+                        icon: applicationsIcon,
+                        onDrag: { project.iconPositions.applications = project.previewLayout.clampedPosition($0, label: "Applications") }
+                    )
+                }
             }
             .frame(width: project.windowSize.width, height: project.windowSize.height)
             .coordinateSpace(name: "previewCanvas")
