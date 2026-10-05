@@ -9,7 +9,11 @@
 </p>
 
 <p align="center">
-  Native macOS · SwiftUI · Apple silicon &amp; Intel · MIT License
+  <a href="https://github.com/MuchanKim/SnapDMG/releases"><img src="https://img.shields.io/badge/Version-1.0-007EC6?style=flat&amp;logo=github&amp;logoColor=white" alt="App version 1.0"></a>
+  <a href="#download"><img src="https://img.shields.io/badge/macOS-26%2B-000000?style=flat&amp;logo=apple&amp;logoColor=white" alt="Requires macOS 26 or later"></a>
+  <a href="#build-from-source"><img src="https://img.shields.io/badge/Swift-6.0-F05138?style=flat&amp;logo=swift&amp;logoColor=white" alt="Swift 6.0"></a>
+  <a href="https://github.com/sparkle-project/Sparkle/releases/tag/2.10.0"><img src="https://img.shields.io/badge/Sparkle-2.10.0-8A2BE2?style=flat" alt="Sparkle 2.10.0 dependency"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-3DA639?style=flat" alt="MIT License"></a>
 </p>
 
 <p align="center">
@@ -18,13 +22,17 @@
   <a href="#build-from-source">Build from source</a>
 </p>
 
-![SnapDMG editor showing a custom background and a horizontal app-to-Applications layout](docs/media/editor.png)
+<p align="center">
+  <img src="docs/media/editor.png" width="640" alt="SnapDMG editor showing a custom background and a horizontal app-to-Applications layout">
+</p>
 
 Pick your `.app`, add a background, and arrange the icons in a live preview. SnapDMG builds a DMG containing your app and an Applications shortcut, ready for drag-and-drop installation.
 
 ## See it in action
 
-![Actual SnapDMG UI demonstrating icon sizing, vertical layout, dragging icons, and collapsing the sidebar](docs/media/workflow.gif)
+<p align="center">
+  <img src="docs/media/workflow.gif" width="640" alt="Actual SnapDMG UI demonstrating icon sizing, vertical layout, dragging icons, and collapsing the sidebar">
+</p>
 
 *Captured from the running app: resize icons, switch layouts, drag each icon into place, and expand the preview.*
 
@@ -58,6 +66,8 @@ Use **Save** to keep a `.snapdmg` project for later. When reopening a project, s
 ## Build from source
 
 Use Xcode with the macOS 26 SDK or later.
+
+The app and test targets use **Swift 6 language mode**. Builds use **Xcode 27** and the **Swift 6.4 compiler**.
 
 1. Clone this repository and open `SnapDMG/SnapDMG.xcodeproj`.
 2. Let Swift Package Manager resolve the Sparkle dependency.
