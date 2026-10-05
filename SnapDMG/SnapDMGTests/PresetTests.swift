@@ -2,6 +2,7 @@ import Testing
 import Foundation
 @testable import SnapDMG
 
+@MainActor
 @Suite("Preset Tests")
 struct PresetTests {
 

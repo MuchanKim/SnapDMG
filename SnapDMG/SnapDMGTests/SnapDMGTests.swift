@@ -2,6 +2,7 @@ import Testing
 import Foundation
 @testable import SnapDMG
 
+@MainActor
 @Suite("SnapDMGProject Tests")
 struct SnapDMGProjectTests {
 
