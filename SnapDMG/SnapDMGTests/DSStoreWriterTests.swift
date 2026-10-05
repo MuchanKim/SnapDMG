@@ -189,6 +189,7 @@ struct DSStoreWriterTests {
     // MARK: - Integration
 
     @Test("통합: .DS_Store 파일을 포함한 DMG 생성 및 검증")
+    @MainActor
     func integrationDMGBuild() async throws {
         let fm = FileManager.default
         let tempDir = fm.temporaryDirectory.appendingPathComponent("snapdmg-test-\(UUID().uuidString)")
@@ -204,6 +205,7 @@ struct DSStoreWriterTests {
         let appPath = tempDir.appendingPathComponent("TestApp.app")
 
         let builder = DMGBuilder()
+        var lastStatus: String?
         try await builder.build(config: .init(
             appPath: appPath,
             outputPath: outputDMG,
@@ -215,7 +217,12 @@ struct DSStoreWriterTests {
                 applications: CGPoint(x: 360, y: 190)
             ),
             iconSize: 128
-        ))
+        )) { status in
+            MainActor.assertIsolated()
+            lastStatus = status
+        }
+
+        #expect(lastStatus == "Finished")
 
         // DMG 파일 존재 확인
         #expect(fm.fileExists(atPath: outputDMG.path))

@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - DSStoreRecord
 
-enum DSStoreRecord: Comparable {
+nonisolated enum DSStoreRecord: Comparable {
 
     case vSrn
     case bwsp(windowBounds: String)
@@ -193,7 +193,7 @@ enum DSStoreRecord: Comparable {
 
 // MARK: - DSStoreWriter
 
-enum DSStoreWriter {
+nonisolated enum DSStoreWriter {
 
     /// DropDMG의 .DS_Store 레이아웃을 정확히 따르는 구현.
     ///
@@ -333,12 +333,12 @@ enum DSStoreWriter {
 // MARK: - Data Helpers
 
 extension Data {
-    mutating func appendUInt32(_ value: UInt32) {
+    nonisolated mutating func appendUInt32(_ value: UInt32) {
         var bigEndian = value.bigEndian
         append(contentsOf: Swift.withUnsafeBytes(of: &bigEndian) { Array($0) })
     }
 
-    mutating func appendUInt16(_ value: UInt16) {
+    nonisolated mutating func appendUInt16(_ value: UInt16) {
         var bigEndian = value.bigEndian
         append(contentsOf: Swift.withUnsafeBytes(of: &bigEndian) { Array($0) })
     }

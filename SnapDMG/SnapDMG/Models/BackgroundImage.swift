@@ -3,7 +3,7 @@ import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
 
-enum BackgroundImageError: LocalizedError {
+nonisolated enum BackgroundImageError: LocalizedError {
     case unreadable(String)
     case renderingFailed
 
@@ -17,7 +17,7 @@ enum BackgroundImageError: LocalizedError {
     }
 }
 
-struct BackgroundImage {
+nonisolated struct BackgroundImage {
     let image: CGImage
 
     init(url: URL) throws {

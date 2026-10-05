@@ -1,7 +1,7 @@
 import Foundation
 
 /// DropDMG의 802바이트 Alias를 참고한 풀 포맷 Alias Record (v2).
-enum AliasRecord {
+nonisolated enum AliasRecord {
 
     static func build(
         volumeName: String,

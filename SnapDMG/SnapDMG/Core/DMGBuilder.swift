@@ -1,6 +1,6 @@
 import Foundation
 
-enum DMGBuilderError: LocalizedError {
+nonisolated enum DMGBuilderError: LocalizedError {
     case appNotFound(String)
     case backgroundImageNotFound(String)
     case hdiutilFailed(String)
@@ -20,9 +20,9 @@ enum DMGBuilderError: LocalizedError {
     }
 }
 
-final class DMGBuilder {
+nonisolated struct DMGBuilder: Sendable {
 
-    struct BuildConfig {
+    struct BuildConfig: Sendable {
         let appPath: URL
         let outputPath: URL
         let volumeName: String
@@ -32,9 +32,9 @@ final class DMGBuilder {
         let iconSize: Double
     }
 
-    var onProgress: ((String) -> Void)?
-
-    func build(config: BuildConfig) async throws {
+    // 파일 복사와 외부 프로세스 대기는 UI actor에서 분리한다.
+    @concurrent
+    func build(config: BuildConfig, onProgress: @MainActor @Sendable (String) -> Void = { _ in }) async throws {
         let fm = FileManager.default
 
         guard fm.fileExists(atPath: config.appPath.path) else {
@@ -65,7 +65,7 @@ final class DMGBuilder {
             let totalSize = appSize + bgSize + 10_000_000
             let sizeMB = max(16, (totalSize / 1_000_000) + 1)
 
-            onProgress?("Creating temporary DMG...")
+            await onProgress("Creating disk image…")
 
             try run("hdiutil", "create",
                      "-size", "\(sizeMB)m",
@@ -73,7 +73,7 @@ final class DMGBuilder {
                      "-volname", config.volumeName,
                      tempDMG.path)
 
-            onProgress?("Mounting...")
+            await onProgress("Mounting disk image…")
 
             try run("hdiutil", "attach", tempDMG.path,
                      "-mountpoint", mountPoint.path,
@@ -83,7 +83,7 @@ final class DMGBuilder {
                 do { try run("hdiutil", "detach", mountPoint.path, "-quiet") } catch {}
             }
 
-            onProgress?("Copying files...")
+            await onProgress("Copying app…")
 
             let appDest = mountPoint.appendingPathComponent(config.appPath.lastPathComponent)
             try fm.copyItem(at: config.appPath, to: appDest)
@@ -100,7 +100,7 @@ final class DMGBuilder {
                 try fm.copyItem(at: preparedBackground, to: bgDir.appendingPathComponent("background.png"))
             }
 
-            onProgress?("Writing .DS_Store...")
+            await onProgress("Applying layout…")
 
             let appName = config.appPath.lastPathComponent
             var records: [DSStoreRecord] = [
@@ -132,10 +132,10 @@ final class DMGBuilder {
                 try? fm.removeItem(at: fseventsd)
             }
 
-            onProgress?("Detaching...")
+            await onProgress("Unmounting…")
             try run("hdiutil", "detach", mountPoint.path)
 
-            onProgress?("Compressing...")
+            await onProgress("Compressing…")
             if fm.fileExists(atPath: config.outputPath.path) {
                 try fm.removeItem(at: config.outputPath)
             }
@@ -143,7 +143,7 @@ final class DMGBuilder {
                      "-format", "UDZO",
                      "-o", config.outputPath.path)
 
-            onProgress?("Done!")
+            await onProgress("Finished")
 
         } catch {
             do { try run("hdiutil", "detach", mountPoint.path, "-quiet") } catch {}

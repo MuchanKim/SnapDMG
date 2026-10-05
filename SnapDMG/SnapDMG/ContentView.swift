@@ -16,6 +16,7 @@ struct ContentView: View {
     @State private var appURL: URL?
     @State private var backgroundImage: BackgroundImage?
     @State private var isBuilding = false
+    @State private var buildStatus = ""
     @State private var errorMessage: String?
     @State private var showAlert = false
     @State private var projectFileURL: URL?
@@ -30,6 +31,7 @@ struct ContentView: View {
                     layout: layout,
                     isCollapsed: isSidebarCollapsed,
                     isBuilding: isBuilding,
+                    buildStatus: buildStatus,
                     onSelectApp: selectApp,
                     onSelectBackground: selectBackground,
                     onRemoveBackground: removeBackground,
@@ -38,7 +40,6 @@ struct ContentView: View {
                     onOpen: openProject
                 )
                 .frame(width: isSidebarCollapsed ? layout.collapsedSidebarWidth : layout.sidebarWidth)
-                .disabled(isBuilding)
 
                 PreviewCanvasView(project: $project, appURL: $appURL, backgroundImage: backgroundImage?.image, onSelectApp: selectApp)
                     .disabled(isBuilding)
@@ -89,15 +90,21 @@ struct ContentView: View {
             iconSize: project.iconSize
         )
         isBuilding = true
+        buildStatus = "Preparing…"
         Task {
+            defer {
+                isBuilding = false
+                buildStatus = ""
+            }
             do {
                 let builder = DMGBuilder()
-                try await builder.build(config: config)
+                try await builder.build(config: config) { status in
+                    buildStatus = status
+                }
             } catch {
                 errorMessage = error.localizedDescription
                 showAlert = true
             }
-            isBuilding = false
         }
     }
 
